@@ -1,69 +1,66 @@
-from torch.utils.data import Dataset
-import os
+、import numpy as np
 from PIL import Image
-from torchvision import transforms
-import numpy as np
-import torch
+import os
+from DataSet import WHU_OPT_SARDataset
+from torch.utils.data import DataLoader
 
-class MaskToTensor(object):
-    def __call__(self, img):
-        return torch.from_numpy(np.array(img, dtype=np.int32)).long()
+# 方法1：直接读取标签文件
+def check_labels_direct():
+    print("=== 直接检查标签文件 ===")
+    label_dir = 'dataset/train/lbl'  # 修改为您的路径
+    
+    all_unique_values = set()
+    
+    # 检查前5个文件
+    for i, filename in enumerate(os.listdir(label_dir)[:5]):
+        if filename.endswith(('.png', '.tif', '.jpg')):
+            label_path = os.path.join(label_dir, filename)
+            label = Image.open(label_path).convert('L')
+            label_array = np.array(label)
+            
+            unique_values = np.unique(label_array)
+            all_unique_values.update(unique_values)
+            
+            print(f"\n文件 {filename}:")
+            print(f"  标签范围: {unique_values}")
+            print(f"  最小值: {label_array.min()}, 最大值: {label_array.max()}")
+            print(f"  各标签像素数量:")
+            for val in unique_values:
+                count = (label_array == val).sum()
+                print(f"    标签 {val}: {count} 像素")
+    
+    print(f"\n所有文件的标签值: {sorted(all_unique_values)}")
 
-img_opt_transform = transforms.Compose([
-    transforms.ToTensor(),
-    ])
+# 方法2：通过数据集类检查
+def check_labels_dataset():
+    print("\n=== 通过数据集类检查 ===")
+    dataset = WHU_OPT_SARDataset(
+        class_name='whu-sar-opt',
+        root='dataset/train'  # 修改为您的路径
+    )
+    
+    all_unique_values = set()
+    
+    # 检查前5个样本
+    for i in range(min(5, len(dataset))):
+        sar, opt, mask = dataset[i]
+        
+        # 转换为numpy查看
+        mask_np = mask.numpy()
+        unique_values = np.unique(mask_np)
+        all_unique_values.update(unique_values.tolist())
+        
+        print(f"\n样本 {i}:")
+        print(f"  标签shape: {mask_np.shape}")
+        print(f"  标签范围: {unique_values}")
+        print(f"  最小值: {mask_np.min()}, 最大值: {mask_np.max()}")
+    
+    print(f"\n数据集中所有标签值: {sorted(all_unique_values)}")
 
-# img_transform = transforms.Compose([
-#     transforms.ToTensor(),
-#     transforms.Normalize([.485, .456, .406], [.229, .224, .225])])
-
-img_sar_transform = transforms.Compose([
-    transforms.ToTensor(),
-    ])
-
-mask_transform = MaskToTensor()
-class WHU_OPT_SARDataset(Dataset):
-    def __init__(self, class_name, root, mode=None, img_sar_transform=img_sar_transform, img_opt_transform=img_opt_transform, mask_transform=mask_transform, sync_transforms=None):
-        # 数据相关
-        self.class_names = class_name
-        self.mode = mode
-        self.img_sar_transform = img_sar_transform
-        self.img_opt_transform = img_opt_transform
-        self.mask_transform = mask_transform
-        self.sync_transform = sync_transforms
-        self.sync_img_mask = []
-
-        img_sar_dir = os.path.join(root, 'sar')
-        img_opt_dir = os.path.join(root, 'opt')
-        mask_dir = os.path.join(root, 'lbl')
-
-        for img_filename in os.listdir(img_sar_dir):
-            img_mask_pair = (os.path.join(img_sar_dir, img_filename),
-                             os.path.join(img_opt_dir, img_filename),
-                             os.path.join(mask_dir, img_filename))
-            self.sync_img_mask.append(img_mask_pair)
-        # print(self.sync_img_mask)
-
-        if (len(self.sync_img_mask)) == 0:
-            print("Found 0 dataset, please check your dataset!")
-
-    def __getitem__(self, index):
-        img_sar_path, img_opt_path, mask_path = self.sync_img_mask[index]
-        img_sar = Image.open(img_sar_path)
-        img_opt = Image.open(img_opt_path)
-        mask = Image.open(mask_path).convert('L')
-        # transform
-        if self.sync_transform is not None:
-            img_sar, img_opt, mask = self.sync_transform(img_sar, img_opt, mask)
-        if self.img_sar_transform is not None:
-            img_sar = self.img_sar_transform(img_sar)
-            img_opt = self.img_opt_transform(img_opt)
-        if self.mask_transform is not None:
-            mask = self.mask_transform(mask)
-        return img_sar, img_opt, mask
-
-    def __len__(self):
-        return len(self.sync_img_mask)
-
-    def classes(self):
-        return self.class_names
+# 运行检查
+if __name__ == "__main__":
+    # 先直接检查原始文件
+    check_labels_direct()
+    
+    # 再通过数据集类检查
+    check_labels_dataset()
