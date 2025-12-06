@@ -1,2 +1,7 @@
-(dp) linux@ubuntu-8855:~/Downloads/MCANet-main(1)/utils$ python spilt_data.py
-python: can't open file '/home/linux/Downloads/MCANet-main(1)/utils/spilt_data.py': [Errno 2] No such file or directory
+(dp) linux@ubuntu-8855:~/Downloads/MCANet-main(1)$ python Train.py
+Traceback (most recent call last):
+  File "/home/linux/Downloads/MCANet-main(1)/Train.py", line 16, in <module>
+    from model.multimodal_vssm import MultiModalVSSM  # 导入您的模型
+  File "/home/linux/Downloads/MCANet-main(1)/model/multimodal_vssm.py", line 9, in <module>
+    from vssm import (
+ModuleNotFoundError: No module named 'vssm'
