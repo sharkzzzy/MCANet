@@ -390,5 +390,3 @@ class MultiModalVSSM(nn.Module):
             x = self.forward_up_features(x, x_downsample, h, w)
             x = self.up_x4(x, h, w)
             return x
-
-
