@@ -1,14 +1,2 @@
-(dp) linux@ubuntu-8855:~/Downloads/MCANet-main(1)$ pip install opencv-python
-Looking in indexes: https://mirrors.ustc.edu.cn/pypi/simple
-Requirement already satisfied: opencv-python in /home/linux/anaconda3/envs/dp/lib/python3.10/site-packages (4.12.0.88)
-Requirement already satisfied: numpy<2.3.0,>=2 in /home/linux/anaconda3/envs/dp/lib/python3.10/site-packages (from opencv-python) (2.1.2)
-(dp) linux@ubuntu-8855:~/Downloads/MCANet-main(1)$ /home/linux/anaconda3/envs/torch2.4_cuda11.8/bin/python "/home/linux/Downloads/MCANet-main(1)/MCANet-main/utils/crop_all_sar.py"
-Traceback (most recent call last):
-  File "/home/linux/Downloads/MCANet-main(1)/MCANet-main/utils/crop_all_sar.py", line 6, in <module>
-    import cv2
-ModuleNotFoundError: No module named 'cv2'
-(dp) linux@ubuntu-8855:~/Downloads/MCANet-main(1)$ /home/linux/anaconda3/envs/torch2.4_cuda11.8/bin/python "/home/linux/Downloads/MCANet-main(1)/MCANet-main/utils/crop_all_sar.py"
-Traceback (most recent call last):
-  File "/home/linux/Downloads/MCANet-main(1)/MCANet-main/utils/crop_all_sar.py", line 6, in <module>
-    import cv2
-ModuleNotFoundError: No module named 'cv2'
+conda activate dp
+python "/home/linux/Downloads/MCANet-main(1)/MCANet-main/utils/crop_all_sar.py"
