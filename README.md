@@ -11,11 +11,11 @@ python utils/crop_all_sar.py
 # Cut Optical Image into 256x256 patches
 python utils/crop_all_opt.py
 # Convert Label RGB to [0:7]
-python utils/convert_label.py
+python convert_label.py
 # Cut Optical Image into 256x256 patches
-python utils/crop_all_lbl.py
+python crop_all_lbl.py
 # Spilt data into train/validation/test set    6:2:2
-python utils/spilt_data.py
+python spilt_data.py
 ```
 ######  Dataset Structure
 ```
