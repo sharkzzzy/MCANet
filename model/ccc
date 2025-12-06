@@ -1,66 +1,21 @@
-修改 DataSet.py 中的 __getitem__ 方法：
-python
-def __getitem__(self, index):
-    img_sar_path, img_opt_path, mask_path = self.sync_img_mask[index]
-    img_sar = Image.open(img_sar_path)
-    img_opt = Image.open(img_opt_path)
-    mask = Image.open(mask_path).convert('L')
-    
-    # transform
-    if self.sync_transform is not None:
-        img_sar, img_opt, mask = self.sync_transform(img_sar, img_opt, mask)
-    if self.img_sar_transform is not None:
-        img_sar = self.img_sar_transform(img_sar)
-        img_opt = self.img_opt_transform(img_opt)
-    if self.mask_transform is not None:
-        mask = self.mask_transform(mask)
-    
-    # ===== 标签映射：7类 [0,29,76,121,123,179,226] → [0,1,2,3,4,5,6] =====
-    label_mapping = {
-        0: 0,    # 背景类
-        29: 1,   
-        76: 2,   
-        121: 3,  
-        123: 4,  
-        179: 5,  
-        226: 6   
-    }
-    
-    # 使用numpy进行快速映射
-    mask_np = mask.numpy() if isinstance(mask, torch.Tensor) else np.array(mask)
-    new_mask = np.zeros_like(mask_np, dtype=np.int64)
-    
-    for old_val, new_val in label_mapping.items():
-        new_mask[mask_np == old_val] = new_val
-    
-    # 处理未知标签（设置为忽略值255）
-    known_values = list(label_mapping.keys())
-    unknown_mask = ~np.isin(mask_np, known_values)
-    if unknown_mask.any():
-        print(f"Warning: Found unknown label values in {mask_path}")
-        new_mask[unknown_mask] = 255
-    
-    mask = torch.from_numpy(new_mask).long()
-    # ===== 结束 =====
-    
-    return img_sar, img_opt, mask
-修改训练代码中的类别数：
-python
-class Args:
-    def __init__(self) -> None:
-        self.batch_size = 8
-        self.lr = 0.0001
-        self.epochs = 100
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.num_classes = 7  # 改为7类！
-        # ... 其他参数
-在模型初始化时也要确保类别数正确：
-python
-# 在训练脚本中
-model = MultiModalVSSM(
-    num_classes=7,  # 7类
-    depths=args.depths,
-    dims=args.dims,
-    d_state=args.d_state,
-    # ... 其他参数
-).to(args.device)
+Sat Dec  6 19:22:19 2025       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 550.107.02             Driver Version: 550.107.02     CUDA Version: 12.4     |
+|-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA GeForce RTX 2080 Ti     Off |   00000000:01:00.0 Off |                  N/A |
+| 30%   45C    P2            106W /  250W |   11739MiB /  22528MiB |     34%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+                                                                                         
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI        PID   Type   Process name                              GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|    0   N/A  N/A      1387      G   /usr/lib/xorg/Xorg                              4MiB |
+|    0   N/A  N/A    353433      C   python                                      11730MiB |
++-----------------------------------------------------------------------------------------+
