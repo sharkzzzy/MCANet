@@ -1,0 +1,17 @@
+Traceback (most recent call last):
+  File "/home/linux/Downloads/MCANet-main(1)/MCANet-main/model/multimodal_vssm.py", line 395, in <module>
+    model = MultiModalVSSM(num_classes=6).cuda()
+  File "/home/linux/Downloads/MCANet-main(1)/MCANet-main/model/multimodal_vssm.py", line 237, in __init__
+    self.apply(self._init_weights)
+  File "/home/linux/anaconda3/envs/dp/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1032, in apply
+    module.apply(fn)
+  File "/home/linux/anaconda3/envs/dp/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1032, in apply
+    module.apply(fn)
+  File "/home/linux/anaconda3/envs/dp/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1032, in apply
+    module.apply(fn)
+  [Previous line repeated 4 more times]
+  File "/home/linux/anaconda3/envs/dp/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1033, in apply
+    fn(self)
+  File "/home/linux/Downloads/MCANet-main(1)/MCANet-main/model/multimodal_vssm.py", line 241, in _init_weights
+    trunc_normal_(m.weight, std=.02)
+NameError: name 'trunc_normal_' is not defined
