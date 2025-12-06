@@ -1,2 +1,2 @@
-conda activate dp
-python "/home/linux/Downloads/MCANet-main(1)/MCANet-main/utils/crop_all_sar.py"
+(dp) linux@ubuntu-8855:~/Downloads/MCANet-main(1)/utils$ python spilt_data.py
+python: can't open file '/home/linux/Downloads/MCANet-main(1)/utils/spilt_data.py': [Errno 2] No such file or directory
