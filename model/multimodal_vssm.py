@@ -390,3 +390,21 @@ class MultiModalVSSM(nn.Module):
             x = self.forward_up_features(x, x_downsample, h, w)
             x = self.up_x4(x, h, w)
             return x
+
+
+
+
+if __name__ == "__main__":
+    model = MultiModalVSSM(num_classes=6).cuda()
+    
+    # 测试输入
+    sar_input = torch.randn(4, 1, 256, 256).cuda()  # SAR单通道
+    opt_input = torch.randn(4, 4, 256, 256).cuda()  # 光学4通道
+    
+    # 方式1：元组输入
+    output = model((sar_input, opt_input))
+    print(f"Output shape: {output.shape}")
+    
+    # 方式2：字典输入
+    output = model({'sar': sar_input, 'opt': opt_input})
+    print(f"Output shape: {output.shape}")
