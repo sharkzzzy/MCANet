@@ -1,60 +1,66 @@
-# check_all_labels.py
-import os
-import numpy as np
-from PIL import Image
-from collections import Counter
-
-def check_all_dataset_labels():
-    """检查整个数据集的所有标签"""
+修改 DataSet.py 中的 __getitem__ 方法：
+python
+def __getitem__(self, index):
+    img_sar_path, img_opt_path, mask_path = self.sync_img_mask[index]
+    img_sar = Image.open(img_sar_path)
+    img_opt = Image.open(img_opt_path)
+    mask = Image.open(mask_path).convert('L')
     
-    # 路径设置
-    train_label_dir = 'dataset/train/lbl'
-    val_label_dir = 'dataset/val/lbl'
-    test_label_dir = 'dataset/test/lbl'  # 如果有的话
+    # transform
+    if self.sync_transform is not None:
+        img_sar, img_opt, mask = self.sync_transform(img_sar, img_opt, mask)
+    if self.img_sar_transform is not None:
+        img_sar = self.img_sar_transform(img_sar)
+        img_opt = self.img_opt_transform(img_opt)
+    if self.mask_transform is not None:
+        mask = self.mask_transform(mask)
     
-    all_labels = Counter()
-    file_count = 0
+    # ===== 标签映射：7类 [0,29,76,121,123,179,226] → [0,1,2,3,4,5,6] =====
+    label_mapping = {
+        0: 0,    # 背景类
+        29: 1,   
+        76: 2,   
+        121: 3,  
+        123: 4,  
+        179: 5,  
+        226: 6   
+    }
     
-    # 检查所有数据集
-    for dataset_name, label_dir in [('训练集', train_label_dir), 
-                                    ('验证集', val_label_dir)]:
-        if os.path.exists(label_dir):
-            print(f"\n检查{dataset_name}: {label_dir}")
-            dataset_labels = Counter()
-            
-            for filename in os.listdir(label_dir):
-                if filename.endswith(('.png', '.tif', '.jpg')):
-                    label_path = os.path.join(label_dir, filename)
-                    label = Image.open(label_path).convert('L')
-                    label_array = np.array(label)
-                    
-                    # 统计标签
-                    unique, counts = np.unique(label_array, return_counts=True)
-                    for val, count in zip(unique, counts):
-                        dataset_labels[val] += count
-                        all_labels[val] += count
-                    
-                    file_count += 1
-            
-            print(f"  文件数: {file_count}")
-            print(f"  标签分布:")
-            for label_val in sorted(dataset_labels.keys()):
-                print(f"    标签 {label_val}: {dataset_labels[label_val]} 像素")
+    # 使用numpy进行快速映射
+    mask_np = mask.numpy() if isinstance(mask, torch.Tensor) else np.array(mask)
+    new_mask = np.zeros_like(mask_np, dtype=np.int64)
     
-    print(f"\n===== 总结 =====")
-    print(f"所有标签值: {sorted(all_labels.keys())}")
-    print(f"标签数量: {len(all_labels)}")
-    print(f"\n完整标签分布:")
-    for label_val in sorted(all_labels.keys()):
-        print(f"  标签 {label_val}: {all_labels[label_val]} 像素")
+    for old_val, new_val in label_mapping.items():
+        new_mask[mask_np == old_val] = new_val
     
-    # 检查是否符合7类
-    if len(all_labels) == 6:
-        print("\n⚠️ 只发现6个标签值，可能需要加上背景类(0)作为第7类")
-    elif len(all_labels) == 7:
-        print("\n✓ 发现7个标签值，与文档一致")
-    else:
-        print(f"\n❌ 发现{len(all_labels)}个标签值，与文档不符")
-
-if __name__ == "__main__":
-    check_all_dataset_labels()
+    # 处理未知标签（设置为忽略值255）
+    known_values = list(label_mapping.keys())
+    unknown_mask = ~np.isin(mask_np, known_values)
+    if unknown_mask.any():
+        print(f"Warning: Found unknown label values in {mask_path}")
+        new_mask[unknown_mask] = 255
+    
+    mask = torch.from_numpy(new_mask).long()
+    # ===== 结束 =====
+    
+    return img_sar, img_opt, mask
+修改训练代码中的类别数：
+python
+class Args:
+    def __init__(self) -> None:
+        self.batch_size = 8
+        self.lr = 0.0001
+        self.epochs = 100
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.num_classes = 7  # 改为7类！
+        # ... 其他参数
+在模型初始化时也要确保类别数正确：
+python
+# 在训练脚本中
+model = MultiModalVSSM(
+    num_classes=7,  # 7类
+    depths=args.depths,
+    dims=args.dims,
+    d_state=args.d_state,
+    # ... 其他参数
+).to(args.device)
