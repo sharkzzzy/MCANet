@@ -1,38 +1,13 @@
-if __name__ == "__main__":
-    # 创建模型
-    model = MultiModalVSSM(num_classes=6)
-    model = model.cuda() if torch.cuda.is_available() else model
-    
-    # 设置为评估模式（避免返回辅助输出）
-    model.eval()
-    
-    # 创建测试输入
-    batch_size = 2
-    sar_input = torch.randn(batch_size, 1, 256, 256)
-    opt_input = torch.randn(batch_size, 4, 256, 256)
-    
-    if torch.cuda.is_available():
-        sar_input = sar_input.cuda()
-        opt_input = opt_input.cuda()
-    
-    # 前向传播
-    with torch.no_grad():
-        output = model((sar_input, opt_input))
-        print(f"Output shape: {output.shape}")
-    
-    # 测试训练模式
-    model.train()
-    with torch.no_grad():
-        outputs = model((sar_input, opt_input))
-        if isinstance(outputs, tuple):
-            main_output, aux_outputs = outputs
-            print(f"Training mode - Main output shape: {main_output.shape}")
-            print(f"Training mode - Number of auxiliary outputs: {len(aux_outputs)}")
-            for i, aux in enumerate(aux_outputs):
-                print(f"  Auxiliary output {i} shape: {aux.shape}")
-        else:
-            print(f"Output shape: {outputs.shape}")
-    
-    # 打印模型参数量
-    total_params = sum(p.numel() for p in model.parameters())
-    print(f"Total parameters: {total_params/1e6:.2f}M")
+  def forward(
+/home/linux/anaconda3/envs/dp/lib/python3.10/site-packages/mamba_ssm/ops/triton/layernorm.py:568: FutureWarning: `torch.cuda.amp.custom_bwd(args...)` is deprecated. Please use `torch.amp.custom_bwd(args..., device_type='cuda')` instead.
+  def backward(ctx, dout, *args):
+layer:  1  dstate:  16
+layer:  2  dstate:  16
+layer:  3  dstate:  16
+Output shape: torch.Size([2, 6, 256, 256])
+Training mode - Main output shape: torch.Size([2, 6, 256, 256])
+Training mode - Number of auxiliary outputs: 3
+  Auxiliary output 0 shape: torch.Size([2, 6, 64, 64])
+  Auxiliary output 1 shape: torch.Size([2, 6, 64, 64])
+  Auxiliary output 2 shape: torch.Size([2, 6, 32, 32])
+Total parameters: 55.57M
