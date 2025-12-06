@@ -1,66 +1,78 @@
-、import numpy as np
-from PIL import Image
-import os
-from DataSet import WHU_OPT_SARDataset
-from torch.utils.data import DataLoader
 
-# 方法1：直接读取标签文件
-def check_labels_direct():
-    print("=== 直接检查标签文件 ===")
-    label_dir = 'dataset/train/lbl'  # 修改为您的路径
-    
-    all_unique_values = set()
-    
-    # 检查前5个文件
-    for i, filename in enumerate(os.listdir(label_dir)[:5]):
-        if filename.endswith(('.png', '.tif', '.jpg')):
-            label_path = os.path.join(label_dir, filename)
-            label = Image.open(label_path).convert('L')
-            label_array = np.array(label)
-            
-            unique_values = np.unique(label_array)
-            all_unique_values.update(unique_values)
-            
-            print(f"\n文件 {filename}:")
-            print(f"  标签范围: {unique_values}")
-            print(f"  最小值: {label_array.min()}, 最大值: {label_array.max()}")
-            print(f"  各标签像素数量:")
-            for val in unique_values:
-                count = (label_array == val).sum()
-                print(f"    标签 {val}: {count} 像素")
-    
-    print(f"\n所有文件的标签值: {sorted(all_unique_values)}")
+文件 NH50E007004_255.tif:
+  标签范围: [ 29 121 123 226]
+  最小值: 29, 最大值: 226
+  各标签像素数量:
+    标签 29: 26955 像素
+    标签 121: 17808 像素
+    标签 123: 12768 像素
+    标签 226: 8005 像素
 
-# 方法2：通过数据集类检查
-def check_labels_dataset():
-    print("\n=== 通过数据集类检查 ===")
-    dataset = WHU_OPT_SARDataset(
-        class_name='whu-sar-opt',
-        root='dataset/train'  # 修改为您的路径
-    )
-    
-    all_unique_values = set()
-    
-    # 检查前5个样本
-    for i in range(min(5, len(dataset))):
-        sar, opt, mask = dataset[i]
-        
-        # 转换为numpy查看
-        mask_np = mask.numpy()
-        unique_values = np.unique(mask_np)
-        all_unique_values.update(unique_values.tolist())
-        
-        print(f"\n样本 {i}:")
-        print(f"  标签shape: {mask_np.shape}")
-        print(f"  标签范围: {unique_values}")
-        print(f"  最小值: {mask_np.min()}, 最大值: {mask_np.max()}")
-    
-    print(f"\n数据集中所有标签值: {sorted(all_unique_values)}")
+文件 NH49E012022_178.tif:
+  标签范围: [ 29  76 121 123 179 226]
+  最小值: 29, 最大值: 226
+  各标签像素数量:
+    标签 29: 10798 像素
+    标签 76: 2754 像素
+    标签 121: 39640 像素
+    标签 123: 3423 像素
+    标签 179: 1932 像素
+    标签 226: 6989 像素
 
-# 运行检查
-if __name__ == "__main__":
-    # 先直接检查原始文件
-    check_labels_direct()
-    
-    # 再通过数据集类检查
-    check_labels_dataset()
+文件 NI49E022011_153.tif:
+  标签范围: [121 123 226]
+  最小值: 121, 最大值: 226
+  各标签像素数量:
+    标签 121: 6105 像素
+    标签 123: 59207 像素
+    标签 226: 224 像素
+
+文件 NH49E011024_239.tif:
+  标签范围: [ 29 121 179]
+  最小值: 29, 最大值: 179
+  各标签像素数量:
+    标签 29: 29102 像素
+    标签 121: 35613 像素
+    标签 179: 821 像素
+
+文件 NH50E012005_68.tif:
+  标签范围: [ 29  76 121 123 179 226]
+  最小值: 29, 最大值: 226
+  各标签像素数量:
+    标签 29: 5648 像素
+    标签 76: 33129 像素
+    标签 121: 18984 像素
+    标签 123: 921 像素
+    标签 179: 1727 像素
+    标签 226: 5127 像素
+
+所有文件的标签值: [np.uint8(29), np.uint8(76), np.uint8(121), np.uint8(123), np.uint8(179), np.uint8(226)]
+
+=== 通过数据集类检查 ===
+
+样本 0:
+  标签shape: (256, 256)
+  标签范围: [ 29 121 123 226]
+  最小值: 29, 最大值: 226
+
+样本 1:
+  标签shape: (256, 256)
+  标签范围: [ 29  76 121 123 179 226]
+  最小值: 29, 最大值: 226
+
+样本 2:
+  标签shape: (256, 256)
+  标签范围: [121 123 226]
+  最小值: 121, 最大值: 226
+
+样本 3:
+  标签shape: (256, 256)
+  标签范围: [ 29 121 179]
+  最小值: 29, 最大值: 179
+
+样本 4:
+  标签shape: (256, 256)
+  标签范围: [ 29  76 121 123 179 226]
+  最小值: 29, 最大值: 226
+
+数据集中所有标签值: [29, 76, 121, 123, 179, 226]
