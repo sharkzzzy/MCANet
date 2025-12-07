@@ -1,7 +1,3 @@
-# !/usr/bin/env python
-# coding=utf-8
-
-#### crop size 256 x 256, stride 256
 import os
 import cv2
 
@@ -22,10 +18,9 @@ class LblImage_to_patch:
             prefix = file_name.split('.')[0]
             lbl_path = os.path.join(self.lbl_path, file_name)
 
-            # read lbl image
-            img_lbl = cv2.imread(lbl_path, cv2.IMREAD_UNCHANGED)
-            # h, w = img_lbl.shape
-            h, w, c =img_lbl.shape
+            # read lbl image - 改为灰度读取
+            img_lbl = cv2.imread(lbl_path, cv2.IMREAD_GRAYSCALE)
+            h, w = img_lbl.shape  # 删除 c
             n_lbl = 1
             # SAR image
             for x in range(0, h - self.stride, self.stride):
@@ -38,13 +33,10 @@ class LblImage_to_patch:
 if __name__ == '__main__':
     image_size = 256
 
-    # lbl_path = 'dataset/orignlbl'
-    # crop_lbl_image_path = 'dataset/lbls'
-    # lbl_path = '../dataset/orignlbl'
-    # crop_lbl_image_path = '../dataset/lbls'
-    lbl_path = '../dataset/lblRGB'
-    crop_lbl_image_path = '../dataset/lblRGBs'
-
+    # 改为使用单通道标签
+    lbl_path = '../dataset/orignlbl'  # 改这里
+    crop_lbl_image_path = '../dataset/lbls'  # 输出路径不变
+    
     # image to patch
     task = LblImage_to_patch(image_size, lbl_path, crop_lbl_image_path) # top 10 labels
     task.to_patch()
