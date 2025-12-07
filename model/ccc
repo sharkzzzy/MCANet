@@ -1,13 +1,28 @@
-Traceback (most recent call last):
-  File "/home/linux/Downloads/MCANet-main(1)/Test.py", line 228, in <module>
-    overall_acc, mean_iou = test()
-  File "/home/linux/Downloads/MCANet-main(1)/Test.py", line 71, in test
-    checkpoint = torch.load(args.model_path, map_location=args.device)
-  File "/home/linux/anaconda3/envs/dp/lib/python3.10/site-packages/torch/serialization.py", line 1470, in load
-    raise pickle.UnpicklingError(_get_wo_message(str(e))) from None
-_pickle.UnpicklingError: Weights only load failed. This file can still be loaded, to do so you have two options, do those steps only if you trust the source of the checkpoint. 
-        (1) In PyTorch 2.6, we changed the default value of the `weights_only` argument in `torch.load` from `False` to `True`. Re-running `torch.load` with `weights_only` set to `False` will likely succeed, but it can result in arbitrary code execution. Do it only if you got the file from a trusted source.
-        (2) Alternatively, to load with `weights_only=True` please check the recommended steps in the following error message.
-        WeightsUnpickler error: Unsupported global: GLOBAL __main__.Args was not an allowed global by default. Please use `torch.serialization.add_safe_globals([Args])` or the `torch.serialization.safe_globals([Args])` context manager to allowlist this global if you trust this class/function.
+# check_original_labels.py
+import numpy as np
+from PIL import Image
+import os
 
-Check the documentation of torch.load to learn more about types accepted by default with weights_only https://pytorch.org/docs/stable/generated/torch.load.html.
+def check_label_values():
+    """检查不同阶段的标签值"""
+    
+    # 检查原始标签
+    original_lbl_path = '../dataset/orignlbl'  # 您处理后的标签
+    current_lbl_path = 'dataset/train/lbl'     # 当前使用的标签
+    
+    print("=== 检查原始标签文件 ===")
+    if os.path.exists(original_lbl_path):
+        for i, filename in enumerate(os.listdir(original_lbl_path)[:5]):
+            if filename.endswith('.tif') or filename.endswith('.png'):
+                label = np.array(Image.open(os.path.join(original_lbl_path, filename)))
+                unique_values = np.unique(label)
+                print(f"{filename}: {unique_values}")
+    
+    print("\n=== 检查当前训练标签文件 ===")
+    for i, filename in enumerate(os.listdir(current_lbl_path)[:5]):
+        if filename.endswith('.tif') or filename.endswith('.png'):
+            label = np.array(Image.open(os.path.join(current_lbl_path, filename)))
+            unique_values = np.unique(label)
+            print(f"{filename}: {unique_values}")
+
+check_label_values()
