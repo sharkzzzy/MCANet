@@ -1,390 +1,243 @@
-(dp) linux@ubuntu-8855:~/Downloads/MCANet-main(1)$ python bbb.py
-=== 检查各个阶段的标签 ===
+# verify_dataset.py
+import os
+import cv2
+import numpy as np
+from PIL import Image
+from collections import Counter
+import matplotlib.pyplot as plt
 
+def verify_dataset():
+    """全面验证切分后的数据集"""
+    
+    dataset_root = '../dataset'  # 根据您的路径调整
+    splits = ['train', 'val', 'test']
+    
+    print("="*60)
+    print("数据集验证报告")
+    print("="*60)
+    
+    # 1. 检查数据集结构
+    print("\n1. 数据集结构检查：")
+    for split in splits:
+        split_path = os.path.join(dataset_root, split)
+        if os.path.exists(split_path):
+            sar_count = len(os.listdir(os.path.join(split_path, 'sar')))
+            opt_count = len(os.listdir(os.path.join(split_path, 'opt')))
+            lbl_count = len(os.listdir(os.path.join(split_path, 'lbl')))
+            
+            print(f"\n{split}集:")
+            print(f"  SAR图像: {sar_count}")
+            print(f"  光学图像: {opt_count}")
+            print(f"  标签: {lbl_count}")
+            
+            if sar_count == opt_count == lbl_count:
+                print(f"  ✓ 数量一致")
+            else:
+                print(f"  ✗ 数量不一致！")
+    
+    # 2. 检查标签格式和值
+    print("\n\n2. 标签检查：")
+    all_label_values = set()
+    label_stats = {}
+    
+    for split in splits:
+        print(f"\n{split}集标签分析:")
+        lbl_dir = os.path.join(dataset_root, split, 'lbl')
+        
+        if not os.path.exists(lbl_dir):
+            print("  标签目录不存在！")
+            continue
+        
+        # 统计信息
+        rgb_count = 0
+        single_channel_count = 0
+        split_values = set()
+        value_counts = Counter()
+        
+        # 检查所有标签文件
+        files = os.listdir(lbl_dir)
+        for i, filename in enumerate(files):
+            lbl_path = os.path.join(lbl_dir, filename)
+            
+            # 读取标签
+            img = cv2.imread(lbl_path, cv2.IMREAD_UNCHANGED)
+            
+            if img is None:
+                print(f"  警告：无法读取 {filename}")
+                continue
+            
+            # 检查通道数
+            if len(img.shape) == 3:
+                rgb_count += 1
+                print(f"  错误：{filename} 是RGB图像！")
+            else:
+                single_channel_count += 1
+                unique_vals = np.unique(img)
+                split_values.update(unique_vals)
+                all_label_values.update(unique_vals)
+                
+                # 统计每个值的出现次数
+                for val in unique_vals:
+                    value_counts[val] += (img == val).sum()
+                
+                # 打印前5个文件的信息
+                if i < 5:
+                    print(f"  {filename}: shape={img.shape}, values={unique_vals}")
+        
+        print(f"\n  统计:")
+        print(f"    单通道标签: {single_channel_count}")
+        print(f"    RGB标签: {rgb_count}")
+        print(f"    标签值范围: {sorted(split_values)}")
+        print(f"    标签值数量: {len(split_values)}")
+        
+        # 显示每个标签值的像素占比
+        total_pixels = sum(value_counts.values())
+        if total_pixels > 0:
+            print(f"\n  标签分布:")
+            for val in sorted(value_counts.keys()):
+                percentage = (value_counts[val] / total_pixels) * 100
+                print(f"    类别 {val}: {percentage:.2f}%")
+        
+        label_stats[split] = {
+            'values': split_values,
+            'counts': value_counts,
+            'rgb_count': rgb_count
+        }
+    
+    # 3. 检查标签是否正确
+    print("\n\n3. 标签正确性检查：")
+    print(f"所有数据集中的唯一标签值: {sorted(all_label_values)}")
+    
+    expected_values = set(range(8))  # 期望0-7
+    if all_label_values == expected_values:
+        print("✓ 标签值正确 (0-7)")
+    else:
+        print("✗ 标签值不正确！")
+        if max(all_label_values) > 7:
+            print("  错误：存在大于7的值，可能是未转换的标签")
+        missing = expected_values - all_label_values
+        if missing:
+            print(f"  缺失的类别: {missing}")
+        extra = all_label_values - expected_values
+        if extra:
+            print(f"  额外的值: {extra}")
+    
+    # 4. 检查文件名对应
+    print("\n\n4. 文件名对应检查：")
+    for split in splits[:1]:  # 只检查训练集作为示例
+        split_path = os.path.join(dataset_root, split)
+        if not os.path.exists(split_path):
+            continue
+            
+        sar_files = set(os.listdir(os.path.join(split_path, 'sar')))
+        opt_files = set(os.listdir(os.path.join(split_path, 'opt')))
+        lbl_files = set(os.listdir(os.path.join(split_path, 'lbl')))
+        
+        if sar_files == opt_files == lbl_files:
+            print(f"{split}集: ✓ 文件名完全对应")
+        else:
+            print(f"{split}集: ✗ 文件名不对应")
+            only_sar = sar_files - opt_files - lbl_files
+            if only_sar:
+                print(f"  只在SAR中的文件: {list(only_sar)[:5]}")
+    
+    # 5. 可视化一个样本
+    print("\n\n5. 样本可视化：")
+    visualize_sample(dataset_root, 'train')
+    
+    # 6. 生成报告
+    print("\n\n6. 总结：")
+    total_samples = sum([len(os.listdir(os.path.join(dataset_root, split, 'sar'))) 
+                        for split in splits if os.path.exists(os.path.join(dataset_root, split, 'sar'))])
+    print(f"总样本数: {total_samples}")
+    
+    # 检查是否需要修复
+    need_fix = False
+    for split, stats in label_stats.items():
+        if stats['rgb_count'] > 0:
+            need_fix = True
+            break
+        if not stats['values'].issubset(expected_values):
+            need_fix = True
+            break
+    
+    if need_fix:
+        print("\n⚠️  需要修复标签！")
+        print("建议运行标签修复脚本")
+    else:
+        print("\n✅ 数据集验证通过！")
+        print("可以使用 num_classes=8 开始训练")
 
-original_lbl: dataset/lbl
-  找到 100 个文件
+def visualize_sample(dataset_root, split='train', index=0):
+    """可视化一个样本"""
+    try:
+        # 获取文件列表
+        split_path = os.path.join(dataset_root, split)
+        files = sorted(os.listdir(os.path.join(split_path, 'sar')))
+        
+        if index >= len(files):
+            index = 0
+        
+        filename = files[index]
+        
+        # 读取图像
+        sar = cv2.imread(os.path.join(split_path, 'sar', filename), 0)
+        opt = cv2.imread(os.path.join(split_path, 'opt', filename))
+        lbl = cv2.imread(os.path.join(split_path, 'lbl', filename), 0)
+        
+        if sar is None or opt is None or lbl is None:
+            print(f"无法读取样本: {filename}")
+            return
+        
+        print(f"显示样本: {filename}")
+        print(f"  SAR shape: {sar.shape}")
+        print(f"  OPT shape: {opt.shape}")
+        print(f"  Label shape: {lbl.shape}")
+        print(f"  Label values: {np.unique(lbl)}")
+        
+        # 创建可视化
+        plt.figure(figsize=(12, 4))
+        
+        plt.subplot(131)
+        plt.imshow(sar, cmap='gray')
+        plt.title('SAR Image')
+        plt.axis('off')
+        
+        plt.subplot(132)
+        plt.imshow(cv2.cvtColor(opt, cv2.COLOR_BGR2RGB))
+        plt.title('Optical Image')
+        plt.axis('off')
+        
+        plt.subplot(133)
+        plt.imshow(lbl, cmap='tab10', vmin=0, vmax=7)
+        plt.title('Label')
+        plt.colorbar()
+        plt.axis('off')
+        
+        plt.tight_layout()
+        plt.savefig('sample_visualization.png')
+        print(f"  可视化已保存到 sample_visualization.png")
+        
+    except Exception as e:
+        print(f"可视化失败: {str(e)}")
 
-  文件: NI49E021011.tif
-    形状: (3704, 5556)
-    数据类型: uint8
-    模式: L
-    唯一值: [ 0 10 20 30 40 50 60 70]
-    值的数量: 8
-      值 0: 44 像素
-      值 10: 515281 像素
-      值 20: 888823 像素
-      值 30: 271893 像素
-      值 40: 226290 像素
-      值 50: 18565245 像素
-      值 60: 53002 像素
-      值 70: 58846 像素
+def quick_check():
+    """快速检查 - 只看关键信息"""
+    dataset_root = '../dataset'
+    
+    print("快速检查结果：")
+    for split in ['train', 'val', 'test']:
+        lbl_dir = os.path.join(dataset_root, split, 'lbl')
+        if os.path.exists(lbl_dir):
+            # 读取第一个标签
+            first_file = os.listdir(lbl_dir)[0]
+            lbl = cv2.imread(os.path.join(lbl_dir, first_file), 0)
+            print(f"\n{split}: {len(os.listdir(lbl_dir))} 样本")
+            print(f"  标签示例: {np.unique(lbl)}")
 
-  文件: NH49E012022.tif
-    形状: (3704, 5556)
-    数据类型: uint8
-    模式: L
-    唯一值: [10 20 30 40 50 60 70]
-    值的数量: 7
-      值 10: 12322344 像素
-      值 20: 184208 像素
-      值 30: 1873267 像素
-      值 40: 5516235 像素
-      值 50: 277581 像素
-      值 60: 64069 像素
-      值 70: 341720 像素
-
-  文件: NI49E022010.tif
-    形状: (3704, 5555)
-    数据类型: uint8
-    模式: L
-    唯一值: [ 0 10 20 30 40 50 70]
-    值的数量: 7
-      值 0: 53 像素
-      值 10: 2139125 像素
-      值 20: 92 像素
-      值 30: 273088 像素
-      值 40: 444188 像素
-      值 50: 17713215 像素
-      值 70: 5959 像素
-
-  文件: NH50E016002.tif
-    形状: (3704, 5556)
-    数据类型: uint8
-    模式: L
-    唯一值: [ 0 10 20 30 40 50 60 70]
-    值的数量: 8
-      值 0: 1147729 像素
-      值 10: 1765660 像素
-      值 20: 7604 像素
-      值 30: 181091 像素
-      值 40: 176530 像素
-      值 50: 17241218 像素
-      值 60: 1889 像素
-      值 70: 57703 像素
-
-  文件: NH49E013007.tif
-    形状: (3704, 5556)
-    数据类型: uint8
-    模式: L
-    唯一值: [ 0 10 30 40 50 70]
-    值的数量: 6
-      值 0: 1 像素
-      值 10: 3093044 像素
-      值 30: 343198 像素
-      值 40: 182068 像素
-      值 50: 16907532 像素
-      值 70: 53581 像素
-
-processed_lbl: dataset/orignlbl
-  找到 100 个文件
-
-  文件: NI49E021011.tif
-    形状: (3704, 5556)
-    数据类型: uint8
-    模式: L
-    唯一值: [0 1 2 3 4 5 6 7]
-    值的数量: 8
-      值 0: 44 像素
-      值 1: 515281 像素
-      值 2: 888823 像素
-      值 3: 271893 像素
-      值 4: 226290 像素
-      值 5: 18565245 像素
-      值 6: 53002 像素
-      值 7: 58846 像素
-
-  文件: NH49E012022.tif
-    形状: (3704, 5556)
-    数据类型: uint8
-    模式: L
-    唯一值: [1 2 3 4 5 6 7]
-    值的数量: 7
-      值 1: 12322344 像素
-      值 2: 184208 像素
-      值 3: 1873267 像素
-      值 4: 5516235 像素
-      值 5: 277581 像素
-      值 6: 64069 像素
-      值 7: 341720 像素
-
-  文件: NI49E022010.tif
-    形状: (3704, 5555)
-    数据类型: uint8
-    模式: L
-    唯一值: [0 1 2 3 4 5 7]
-    值的数量: 7
-      值 0: 53 像素
-      值 1: 2139125 像素
-      值 2: 92 像素
-      值 3: 273088 像素
-      值 4: 444188 像素
-      值 5: 17713215 像素
-      值 7: 5959 像素
-
-  文件: NH50E016002.tif
-    形状: (3704, 5556)
-    数据类型: uint8
-    模式: L
-    唯一值: [0 1 2 3 4 5 6 7]
-    值的数量: 8
-      值 0: 1147729 像素
-      值 1: 1765660 像素
-      值 2: 7604 像素
-      值 3: 181091 像素
-      值 4: 176530 像素
-      值 5: 17241218 像素
-      值 6: 1889 像素
-      值 7: 57703 像素
-
-  文件: NH49E013007.tif
-    形状: (3704, 5556)
-    数据类型: uint8
-    模式: L
-    唯一值: [0 1 3 4 5 7]
-    值的数量: 6
-      值 0: 1 像素
-      值 1: 3093044 像素
-      值 3: 343198 像素
-      值 4: 182068 像素
-      值 5: 16907532 像素
-      值 7: 53581 像素
-
-rgb_lbl: dataset/lblRGB
-  找到 100 个文件
-
-  文件: NI49E021011.tif
-    形状: (3704, 5556, 3)
-    数据类型: uint8
-    模式: RGB
-    这是RGB图像，尝试恢复标签值...
-    通道0的唯一值: [  0  85 153 204 255]
-    通道1的唯一值: [  0 102 167 255]
-    通道2的唯一值: [  0 153 255]
-
-  文件: NH49E012022.tif
-    形状: (3704, 5556, 3)
-    数据类型: uint8
-    模式: RGB
-    这是RGB图像，尝试恢复标签值...
-    通道0的唯一值: [  0  85 153 204 255]
-    通道1的唯一值: [  0 102 167 255]
-    通道2的唯一值: [  0 153 255]
-
-  文件: NI49E022010.tif
-    形状: (3704, 5555, 3)
-    数据类型: uint8
-    模式: RGB
-    这是RGB图像，尝试恢复标签值...
-    通道0的唯一值: [  0  85 153 204 255]
-    通道1的唯一值: [  0 102 167 255]
-    通道2的唯一值: [  0 153 255]
-
-  文件: NH50E016002.tif
-    形状: (3704, 5556, 3)
-    数据类型: uint8
-    模式: RGB
-    这是RGB图像，尝试恢复标签值...
-    通道0的唯一值: [  0  85 153 204 255]
-    通道1的唯一值: [  0 102 167 255]
-    通道2的唯一值: [  0 153 255]
-
-  文件: NH49E013007.tif
-    形状: (3704, 5556, 3)
-    数据类型: uint8
-    模式: RGB
-    这是RGB图像，尝试恢复标签值...
-    通道0的唯一值: [  0  85 153 204 255]
-    通道1的唯一值: [  0 102 167 255]
-    通道2的唯一值: [  0 153 255]
-
-rgb_patches: dataset/lbls
-  找到 29400 个文件
-
-  文件: NI49E022010_247.tif
-    形状: (256, 256, 3)
-    数据类型: uint8
-    模式: RGB
-    这是RGB图像，尝试恢复标签值...
-    通道0的唯一值: [  0  85 153 204 255]
-    通道1的唯一值: [  0 102 167 255]
-    通道2的唯一值: [  0 153 255]
-
-  文件: NH50E007004_255.tif
-    形状: (256, 256, 3)
-    数据类型: uint8
-    模式: RGB
-    这是RGB图像，尝试恢复标签值...
-    通道0的唯一值: [  0  85 153 204 255]
-    通道1的唯一值: [  0 102 167 255]
-    通道2的唯一值: [  0 153 255]
-
-  文件: NH50E009006_236.tif
-    形状: (256, 256, 3)
-    数据类型: uint8
-    模式: RGB
-    这是RGB图像，尝试恢复标签值...
-    通道0的唯一值: [  0  85 153 204 255]
-    通道1的唯一值: [  0 102 167 255]
-    通道2的唯一值: [  0 153 255]
-
-  文件: NH50E010004_101.tif
-    形状: (256, 256, 3)
-    数据类型: uint8
-    模式: RGB
-    这是RGB图像，尝试恢复标签值...
-    通道0的唯一值: [  0  85 153 204 255]
-    通道1的唯一值: [  0 102 167 255]
-    通道2的唯一值: [  0 153 255]
-
-  文件: NH50E009001_182.tif
-    形状: (256, 256, 3)
-    数据类型: uint8
-    模式: RGB
-    这是RGB图像，尝试恢复标签值...
-    通道0的唯一值: [  0  85 153 204 255]
-    通道1的唯一值: [  0 102 167 255]
-    通道2的唯一值: [  0 153 255]
-
-train_lbl: dataset/train/lbl
-  找到 17640 个文件
-
-  文件: NH50E007004_255.tif
-    形状: (256, 256, 3)
-    数据类型: uint8
-    模式: RGB
-    这是RGB图像，尝试恢复标签值...
-    通道0的唯一值: [  0  85 153 204 255]
-    通道1的唯一值: [  0 102 167 255]
-    通道2的唯一值: [  0 153 255]
-
-  文件: NH49E012022_178.tif
-    形状: (256, 256, 3)
-    数据类型: uint8
-    模式: RGB
-    这是RGB图像，尝试恢复标签值...
-    通道0的唯一值: [  0  85 153 204 255]
-    通道1的唯一值: [  0 102 167 255]
-    通道2的唯一值: [  0 153 255]
-
-  文件: NI49E022011_153.tif
-    形状: (256, 256, 3)
-    数据类型: uint8
-    模式: RGB
-    这是RGB图像，尝试恢复标签值...
-    通道0的唯一值: [ 85 204 255]
-    通道1的唯一值: [102 167 255]
-
-  文件: NH49E011024_239.tif
-    形状: (256, 256, 3)
-    数据类型: uint8
-    模式: RGB
-    这是RGB图像，尝试恢复标签值...
-    通道0的唯一值: [  0 204]
-    通道1的唯一值: [  0 102 255]
-    通道2的唯一值: [  0 255]
-
-  文件: NH50E012005_68.tif
-    形状: (256, 256, 3)
-    数据类型: uint8
-    模式: RGB
-    这是RGB图像，尝试恢复标签值...
-    通道0的唯一值: [  0 153 204 255]
-    通道1的唯一值: [  0 102 255]
-    通道2的唯一值: [  0 153 255]
-
-val_lbl: dataset/val/lbl
-  找到 5880 个文件
-
-  文件: NI49E022010_247.tif
-    形状: (256, 256, 3)
-    数据类型: uint8
-    模式: RGB
-    这是RGB图像，尝试恢复标签值...
-    通道0的唯一值: [  0  85 153 204 255]
-    通道1的唯一值: [  0 102 167 255]
-    通道2的唯一值: [  0 153 255]
-
-  文件: NH50E010004_101.tif
-    形状: (256, 256, 3)
-    数据类型: uint8
-    模式: RGB
-    这是RGB图像，尝试恢复标签值...
-    通道0的唯一值: [  0  85 153 204 255]
-    通道1的唯一值: [  0 102 167 255]
-    通道2的唯一值: [  0 153 255]
-
-  文件: NH50E006001_38.tif
-    形状: (256, 256, 3)
-    数据类型: uint8
-    模式: RGB
-    这是RGB图像，尝试恢复标签值...
-    通道0的唯一值: [  0  85 153 204 255]
-    通道1的唯一值: [  0 102 167 255]
-    通道2的唯一值: [  0 153 255]
-
-  文件: NH49E002012_132.tif
-    形状: (256, 256, 3)
-    数据类型: uint8
-    模式: RGB
-    这是RGB图像，尝试恢复标签值...
-    通道0的唯一值: [  0  85 153 204 255]
-    通道1的唯一值: [102 167 255]
-    通道2的唯一值: [  0 153 255]
-
-  文件: NI49E021010_102.tif
-    形状: (256, 256, 3)
-    数据类型: uint8
-    模式: RGB
-    这是RGB图像，尝试恢复标签值...
-    通道0的唯一值: [  0  85 204 255]
-    通道1的唯一值: [  0 102 167 255]
-    通道2的唯一值: [  0 255]
-
-test_lbl: dataset/test/lbl
-  找到 5880 个文件
-
-  文件: NH50E009006_236.tif
-    形状: (256, 256, 3)
-    数据类型: uint8
-    模式: RGB
-    这是RGB图像，尝试恢复标签值...
-    通道0的唯一值: [  0  85 153 204 255]
-    通道1的唯一值: [  0 102 167 255]
-    通道2的唯一值: [  0 153 255]
-
-  文件: NH50E009001_182.tif
-    形状: (256, 256, 3)
-    数据类型: uint8
-    模式: RGB
-    这是RGB图像，尝试恢复标签值...
-    通道0的唯一值: [  0  85 153 204 255]
-    通道1的唯一值: [  0 102 167 255]
-    通道2的唯一值: [  0 153 255]
-
-  文件: NI49E024013_15.tif
-    形状: (256, 256, 3)
-    数据类型: uint8
-    模式: RGB
-    这是RGB图像，尝试恢复标签值...
-    通道0的唯一值: [  0  85 204 255]
-    通道1的唯一值: [  0 102 167 255]
-    通道2的唯一值: [  0 255]
-
-  文件: NH50E009003_288.tif
-    形状: (256, 256, 3)
-    数据类型: uint8
-    模式: RGB
-    这是RGB图像，尝试恢复标签值...
-    通道0的唯一值: [  0  85 153 204 255]
-    通道1的唯一值: [  0 102 167 255]
-    通道2的唯一值: [  0 153 255]
-
-  文件: NH50E011004_291.tif
-    形状: (256, 256, 3)
-    数据类型: uint8
-    模式: RGB
-    这是RGB图像，尝试恢复标签值...
-    通道0的唯一值: [  0  85 153 204 255]
-    通道1的唯一值: [  0 102 167 255]
-    通道2的唯一值: [  0 153 255]
+if __name__ == "__main__":
+    # 运行完整验证
+    verify_dataset()
+    
+    # 或者只运行快速检查
+    # quick_check()
