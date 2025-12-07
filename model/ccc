@@ -1,28 +1,80 @@
-# check_original_labels.py
+# comprehensive_label_check.py
 import numpy as np
 from PIL import Image
 import os
+import cv2
 
-def check_label_values():
-    """检查不同阶段的标签值"""
+def check_all_label_stages():
+    """检查标签处理的各个阶段"""
     
-    # 检查原始标签
-    original_lbl_path = '../dataset/orignlbl'  # 您处理后的标签
-    current_lbl_path = 'dataset/train/lbl'     # 当前使用的标签
+    # 定义所有可能的路径
+    paths_to_check = {
+        'original_lbl': '../dataset/lbl',          # 最原始的标签
+        'processed_lbl': '../dataset/orignlbl',    # old_label2new_label处理后
+        'rgb_lbl': '../dataset/lblRGB',            # 转换为RGB
+        'rgb_patches': '../dataset/lblRGBs',       # RGB切片
+        'train_lbl': 'dataset/train/lbl',         # 训练集标签
+        'val_lbl': 'dataset/val/lbl',             # 验证集标签
+        'test_lbl': 'dataset/test/lbl'            # 测试集标签
+    }
     
-    print("=== 检查原始标签文件 ===")
-    if os.path.exists(original_lbl_path):
-        for i, filename in enumerate(os.listdir(original_lbl_path)[:5]):
-            if filename.endswith('.tif') or filename.endswith('.png'):
-                label = np.array(Image.open(os.path.join(original_lbl_path, filename)))
-                unique_values = np.unique(label)
-                print(f"{filename}: {unique_values}")
+    print("=== 检查各个阶段的标签 ===\n")
     
-    print("\n=== 检查当前训练标签文件 ===")
-    for i, filename in enumerate(os.listdir(current_lbl_path)[:5]):
-        if filename.endswith('.tif') or filename.endswith('.png'):
-            label = np.array(Image.open(os.path.join(current_lbl_path, filename)))
-            unique_values = np.unique(label)
-            print(f"{filename}: {unique_values}")
+    for stage_name, path in paths_to_check.items():
+        print(f"\n{stage_name}: {path}")
+        if os.path.exists(path):
+            files = [f for f in os.listdir(path) if f.endswith(('.tif', '.png', '.jpg'))]
+            print(f"  找到 {len(files)} 个文件")
+            
+            if files:
+                # 检查前3个文件
+                for i, filename in enumerate(files[:3]):
+                    file_path = os.path.join(path, filename)
+                    try:
+                        # 尝试用PIL读取
+                        img = Image.open(file_path)
+                        img_array = np.array(img)
+                        
+                        print(f"\n  文件: {filename}")
+                        print(f"    形状: {img_array.shape}")
+                        print(f"    数据类型: {img_array.dtype}")
+                        print(f"    模式: {img.mode}")
+                        
+                        # 如果是RGB图像，转换为灰度查看唯一值
+                        if len(img_array.shape) == 3:
+                            # 尝试从RGB恢复原始标签值
+                            print("    这是RGB图像，尝试恢复标签值...")
+                            # 检查R通道（假设标签编码在某个通道）
+                            for c in range(img_array.shape[2]):
+                                unique_vals = np.unique(img_array[:,:,c])
+                                if len(unique_vals) > 1 and len(unique_vals) < 20:
+                                    print(f"    通道{c}的唯一值: {unique_vals}")
+                        else:
+                            # 灰度图像
+                            unique_vals = np.unique(img_array)
+                            print(f"    唯一值: {unique_vals}")
+                            print(f"    值的数量: {len(unique_vals)}")
+                            
+                            # 统计每个值的像素数
+                            if len(unique_vals) < 20:  # 如果值不太多，显示统计
+                                for val in unique_vals:
+                                    count = (img_array == val).sum()
+                                    print(f"      值 {val}: {count} 像素")
+                                    
+                    except Exception as e:
+                        print(f"    读取错误: {str(e)}")
+                        # 尝试用cv2读取
+                        try:
+                            img_cv2 = cv2.imread(file_path, -1)
+                            if img_cv2 is not None:
+                                print(f"    cv2读取成功，形状: {img_cv2.shape}")
+                                unique_vals = np.unique(img_cv2)
+                                print(f"    唯一值: {unique_vals[:10]}..." if len(unique_vals) > 10 else f"    唯一值: {unique_vals}")
+                        except:
+                            pass
+        else:
+            print(f"  路径不存在")
 
-check_label_values()
+# 运行检查
+if __name__ == "__main__":
+    check_all_label_stages()
