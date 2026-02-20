@@ -17,75 +17,134 @@
 然而，高分辨率遥感图像的语义分割仍然面临诸多挑战。首先，遥感图像中地物类型多样、尺度差异显著，同一场景中既包含大面积的农田、水体等宏观地物，也存在车辆、小型建筑等细小目标，要求模型同时具备全局上下文建模能力和局部细节捕获能力。其次，遥感图像背景复杂，地物边界模糊，不同类别之间存在"同物异谱"和"异物同谱"现象，进一步加大了精确分割的难度。此外，高分辨率图像的数据量庞大，对算法的计算效率提出了更高的要求，如何在精度与效率之间取得平衡是一个重要的研究课题。
 
 为应对上述挑战，研究者们不断探索更强大的模型架构。基于Transformer[12]的方法通过自注意力机制有效捕获了长距离依赖关系，在语义分割任务中展现出优越的性能。然而，自注意力机制的计算复杂度与输入序列长度呈二次方关系，当应用于高分辨率遥感图像时，巨大的计算开销严重制约了其实际部署。近年来，状态空间模型（State Space Model, SSM）[13]凭借其线性计算复杂度和全局序列建模能力，为解决这一矛盾提供了新的技术路径。以Mamba[14]为代表的选择性状态空间模型通过输入依赖的选择机制，在保持线性复杂度的同时实现了对长序列的高效建模，已在自然语言处理和计算机视觉等领域展现出巨大潜力。在遥感图像分割中，基于Mamba的方法[15]已初步验证了其在处理大规模场景时兼顾精度与效率的可行性。然而，现有方法仍存在全局上下文建模与局部细节增强在单一处理路径中相互耦合、注意力机制在网络不同阶段冗余堆叠等问题，限制了模型性能的进一步提升。
+
 此外，在实际遥感应用中，单一模态的数据往往难以全面表征复杂地物的特征信息。光学图像虽然具有丰富的光谱和纹理信息，能够直观反映地表覆盖物的属性和类型，但易受云层遮挡、光照变化等环境因素的影响，在恶劣天气条件下成像质量显著下降。合成孔径雷达（Synthetic Aperture Radar, SAR）作为一种主动微波遥感技术，具备全天候、全天时的成像能力，能够穿透云层和部分地表覆盖物，提供稳定可靠的地表观测信息[16]。然而，SAR图像受相干斑噪声干扰严重，且缺乏光谱信息，对地物类型的区分能力有限。通过融合光学图像与SAR图像，可以充分发挥两种模态的互补优势，弥补单一数据源的不足，从而全面、准确地获取地表特征信息。然而，光学图像与SAR图像在成像机理、数据特性和信息表达形式上存在本质差异，如何有效弥合这种模态鸿沟、实现跨模态特征的充分融合，仍然是一个具有挑战性的研究问题。
 
 综上所述，针对遥感图像语义分割中存在的全局与局部特征建模耦合、计算效率受限以及多模态特征融合困难等问题，开展基于状态空间模型的高效分割方法研究，并探索光学与SAR图像的跨模态融合策略，对于推动遥感图像智能解译技术的发展具有重要的理论意义和应用价值。
 
 1.2 国内外研究现状
-遥感图像语义分割是遥感与计算机视觉交叉领域的重要研究方向。近年来，随着深度学习技术的快速发展，该领域的研究方法经历了从传统方法到深度学习方法、从卷积神经网络到Transformer和状态空间模型、从单模态到多模态的演进过程。本节将从基于卷积神经网络的方法、基于Transformer的方法、基于状态空间模型的方法以及多模态融合方法四个方面，对国内外研究现状进行综述。
+遥感图像语义分割是遥感与计算机视觉交叉领域的重要研究方向。近年来，随着深度学习技术的快速发展，该领域的研究方法经历了从传统方法到深度学习方法、从卷积神经网络到Transformer和状态空间模型、从单模态到多模态的演进过程。这一演进的核心驱动力在于对两个基本矛盾的持续求解：一是全局上下文建模能力与计算效率之间的矛盾，二是单一模态信息不足与多模态融合困难之间的矛盾。本节将从基于卷积神经网络的方法、基于Transformer的方法、基于状态空间模型的方法以及多模态融合方法四个方面，对国内外研究现状进行综述。
 
 1.2.1 基于卷积神经网络的语义分割方法
-卷积神经网络（Convolutional Neural Network, CNN）是深度学习在语义分割领域最早也是最广泛应用的基础架构。2015年，Shelhamer等人[9]提出的全卷积网络（FCN）首次将分类网络中的全连接层替换为卷积层，实现了端到端的像素级预测，奠定了深度学习语义分割的基础范式。然而，FCN通过连续的池化操作导致特征图分辨率大幅降低，分割结果的边界较为粗糙，空间细节信息损失严重。
+卷积神经网络（Convolutional Neural Network, CNN）是深度学习在语义分割领域最早也是最广泛应用的基础架构。语义分割任务本质上要求模型同时完成两个目标：对图像内容进行高层语义理解以确定"是什么"，以及保留精确的空间位置信息以确定"在哪里"。这两个目标之间的内在张力构成了语义分割方法演进的核心线索。
 
-为解决空间信息丢失的问题，Ronneberger等人[10]提出了U-Net架构。U-Net采用对称的编码器-解码器结构，并通过跳跃连接将编码器各层的高分辨率特征传递至对应的解码器层，有效融合了深层语义信息与浅层空间细节，在医学图像分割中取得了突破性成果，并被广泛应用于遥感图像分割领域。在此基础上，Zhou等人[17]提出了UNet++，通过密集的嵌套跳跃连接进一步增强了不同层级特征之间的融合效果。
+2015年，Shelhamer等人[9]提出的全卷积网络（FCN）首次将分类网络中的全连接层替换为卷积层，实现了端到端的像素级预测，奠定了深度学习语义分割的基础范式。FCN的核心贡献在于证明了分类网络中学习到的高层语义特征可以通过全卷积化直接转化为密集预测能力。然而，FCN的根本局限也随之暴露：分类网络中连续的池化操作虽然有效地扩大了感受野并提取了抽象语义特征，但同时导致特征图分辨率大幅降低，分割结果的边界较为粗糙，空间细节信息损失严重。简单的双线性插值上采样难以恢复已丢失的空间精度，这本质上反映了语义抽象与空间精度之间的矛盾。
 
-在多尺度特征提取方面，Chen等人[18]提出了DeepLab系列方法。其中，DeepLabV2引入了空洞空间金字塔池化（Atrous Spatial Pyramid Pooling, ASPP）模块，通过并行应用不同膨胀率的空洞卷积，在不增加参数量的前提下有效扩大了感受野，增强了模型对不同尺度目标的建模能力。DeepLabV3+[11]在此基础上结合了编码器-解码器结构，进一步提升了分割边界的精细度。Zhao等人[19]提出的金字塔场景解析网络（PSPNet）通过金字塔池化模块整合不同尺度的全局上下文信息，有效缓解了对大尺度物体和复杂背景的误判问题。
+为系统性地解决这一矛盾，Ronneberger等人[10]提出了U-Net架构。U-Net的核心创新在于其对称的编码器-解码器结构以及跳跃连接机制。编码器通过逐层下采样提取从低级纹理到高级语义的层次化特征，解码器则通过逐层上采样逐步恢复空间分辨率。关键的跳跃连接将编码器各层的高分辨率特征直接传递至对应的解码器层，使得解码器在恢复空间细节时能够利用编码器保留的精确位置信息，从而有效融合了深层语义信息与浅层空间细节。这种设计巧妙地将"语义理解"和"空间定位"分别交由编码器和解码器处理，再通过跳跃连接实现两者的协同，在医学图像分割中取得了突破性成果，并迅速被广泛应用于遥感图像分割领域，成为后续众多分割网络的基础架构。在此基础上，Zhou等人[17]提出了UNet++，通过在编码器与解码器之间引入密集的嵌套跳跃连接，构建了多条不同深度的特征传递路径。这种设计的深层动机在于：U-Net中单一层级的跳跃连接存在语义鸿沟问题——编码器浅层特征富含空间细节但语义信息薄弱，直接与解码器深层的高语义特征拼接可能导致融合效果不佳。UNet++通过密集连接使得不同语义层级的特征能够逐步过渡和融合，缓解了这一问题。
 
-在模型轻量化方面，Badrinarayanan等人[20]提出了SegNet，通过利用编码阶段的池化索引进行非参数化上采样，显著减少了模型参数量。Yu等人[21]提出了双边分割网络（BiSeNet），采用双分支设计分别提取空间细节特征和语义上下文特征，在分割精度与推理速度之间取得了良好的平衡。Howard等人[22]提出的MobileNetV3通过引入深度可分离卷积和反转残差结构，大幅降低了骨干网络的计算开销，为轻量化语义分割模型提供了高效的特征提取基础。
+在特征提取骨干网络方面，He等人[18]提出了深度残差网络（ResNet），通过引入残差学习框架有效解决了深层网络训练中的梯度消失问题。ResNet的核心思想是在卷积层之间建立恒等映射的捷径连接，使网络仅需学习输入与输出之间的残差信息，极大地简化了优化过程，使得网络深度可以大幅增加而不会出现性能退化。由于其优异的特征提取能力和训练稳定性，ResNet系列（尤其是ResNet-18和ResNet-50）被广泛用作语义分割模型的编码器骨干，为后续的特征解码和像素级预测提供了高质量的多层级特征表示。
 
-在遥感图像分割领域，基于CNN的方法同样取得了丰富成果。Li等人[24]提出的ABCNet通过注意力增强的双边网络结构，实现了对遥感图像中复杂场景的精细分割。Wang等人[23]提出了UNetFormer，以ResNet作为编码器骨干，并在解码器中融合了Transformer模块的全局-局部注意力机制，在保持CNN编码器效率的同时增强了全局上下文建模能力，有效提升了遥感图像中多尺度地物的分割精度，体现了CNN与Transformer融合的发展趋势。
+尽管U-Net及其变体有效缓解了空间信息丢失的问题，但编码器中卷积操作的感受野仍然受到卷积核大小的固有限制。即使通过多层堆叠，每个卷积层仅能感知其局部邻域内的信息，对于遥感图像中大面积均质区域（如水体、农田）的一致性分割以及远距离空间关系（如道路的连通性）的捕获，仍然力有不逮。为在不增加参数量的前提下有效扩大感受野，Chen等人[19]提出了DeepLab系列方法。其中，DeepLabV2引入了空洞空间金字塔池化（Atrous Spatial Pyramid Pooling, ASPP）模块，其核心思想是在标准卷积核的采样位置之间插入空洞（即固定间隔），使得卷积核在不增加参数数量的情况下覆盖更大的空间范围。通过并行应用多个不同膨胀率的空洞卷积，ASPP能够同时捕获不同尺度的上下文信息。DeepLabV3+[11]在此基础上进一步结合了编码器-解码器结构，利用解码器逐步恢复空间细节，提升了分割边界的精细度。然而，空洞卷积虽然扩大了理论感受野，但其采样模式仍然是规则的网格状分布，对于不规则形状的地物目标和复杂的空间关系，建模能力仍然有限。
 
-尽管基于CNN的方法在遥感图像分割中取得了显著成效，但卷积操作固有的局部感受野限制了其对长距离依赖关系的建模能力。虽然可以通过堆叠多层卷积或使用空洞卷积来扩大感受野，但这种扩展方式效率较低，且难以有效捕获图像中远距离像素之间的语义关联，在处理大面积均质区域或需要全局上下文理解的场景时表现受限。
+与ASPP的并行多尺度策略不同，Zhao等人[20]提出的金字塔场景解析网络（PSPNet）采用了全局池化的思路来获取多尺度上下文信息。PSPNet通过金字塔池化模块将特征图划分为不同大小的区域并分别进行池化操作，从1×1到6×6的多种尺度，从而聚合从全局到局部的上下文信息。与ASPP相比，PSPNet的全局池化操作能够直接获取整幅图像的全局信息，有效缓解了对大尺度物体和复杂背景的误判问题。然而，池化操作本身会丢弃空间位置信息，且多尺度特征的简单拼接方式可能引入冗余信息。
+
+在模型轻量化方面，随着遥感图像实时处理和边缘部署需求的增长，如何在保持分割精度的同时降低模型的计算开销成为另一重要研究方向。Badrinarayanan等人[21]提出了SegNet，通过利用编码阶段的最大池化索引进行非参数化上采样，避免了转置卷积中大量可学习参数的引入，显著减少了模型参数量。Yu等人[22]提出了双边分割网络（BiSeNet），其设计思想尤为值得关注：它明确地将语义理解和空间细节保持这两个目标分配给两个独立的分支——空间路径通过少量下采样保留高分辨率的空间细节，上下文路径通过快速下采样获取全局语义信息——最后通过特征融合模块将两者结合。这种"将不同任务分配给专用路径"的设计理念，为后续的多路径分割架构提供了重要启发。Howard等人[23]提出的MobileNetV3通过引入深度可分离卷积和反转残差结构，大幅降低了骨干网络的计算开销，为轻量化语义分割模型提供了高效的特征提取基础。
+
+在遥感图像分割领域，基于CNN的方法同样取得了丰富成果，并针对遥感图像的特殊性进行了针对性优化。Li等人[24]提出的ABCNet通过注意力增强的双边网络结构，在空间细节分支和上下文信息分支中分别引入注意力机制，增强了对遥感图像中复杂场景的特征选择能力，实现了精细分割。Wang等人[25]提出了UNetFormer，以ResNet作为编码器骨干，并在解码器中融合了Transformer模块的全局-局部注意力机制。UNetFormer的设计反映了一个重要趋势：研究者开始认识到CNN在局部特征提取方面的高效性和Transformer在全局建模方面的优越性可以互补，而非互相替代。这一思想为后续CNN与其他全局建模技术（如状态空间模型）的融合提供了重要参考。
+
+综上所述，基于CNN的语义分割方法经历了从FCN的全卷积化开创、U-Net的编码器-解码器结构确立、DeepLab系列的多尺度感受野扩展到轻量化模型的效率优化等发展阶段。然而，无论是空洞卷积还是池化操作，本质上都是通过各种策略来弥补卷积操作局部感受野的固有限制，难以真正实现全局范围内任意位置之间的直接信息交互。这一根本性限制促使研究者将目光转向具备全局建模能力的Transformer架构。
 
 1.2.2 基于Transformer的语义分割方法
-Transformer[12]最初为自然语言处理任务设计，其核心的自注意力机制能够直接建模序列中任意两个位置之间的依赖关系，从根本上克服了CNN局部感受野的限制。Dosovitskiy等人[25]首次将Transformer应用于计算机视觉领域，提出了Vision Transformer（ViT），通过将图像划分为固定大小的图像块并进行序列化处理，在图像分类任务中取得了优异的性能。
+卷积神经网络通过局部感受野的层层堆叠来间接捕获全局信息的方式，在效率和效果上均存在瓶颈。Transformer[12]的出现提供了一种全新的思路：通过自注意力机制，序列中任意两个位置之间可以建立直接的依赖关系，从根本上克服了CNN局部感受野的限制。
 
-在语义分割领域，Zheng等人[26]提出了SETR（Segmentation Transformer），将ViT作为编码器，首次验证了纯Transformer架构在语义分割任务中的可行性。Xie等人[27]提出了SegFormer，设计了层次化的Transformer编码器和轻量级的全多层感知机（All-MLP）解码器，在多个分割基准上取得了精度与效率的良好平衡。Liu等人[28]提出了Swin Transformer，通过滑动窗口机制将自注意力的计算限制在局部窗口内，并通过窗口间的移位实现跨窗口信息交互，将计算复杂度从二次方降低至线性，极大地提升了Transformer处理高分辨率图像的效率。
+Dosovitskiy等人[26]首次将Transformer应用于计算机视觉领域，提出了Vision Transformer（ViT）。ViT将图像划分为固定大小的图像块（patch），将每个图像块展平为一维向量后作为序列输入Transformer编码器，通过多头自注意力机制建模图像块之间的全局关系。ViT在大规模图像分类任务中取得了优异的性能，证明了Transformer架构在视觉任务中的可行性。然而，ViT的设计也暴露了Transformer应用于视觉任务的核心挑战：自注意力的计算复杂度与序列长度呈二次方关系（
+O
+(
+N
+2
+)
+O(N 
+2
+ )，其中
+N
+N为图像块数量）。对于遥感图像分割而言，高分辨率图像需要密集的像素级预测，图像块数量远大于分类任务，导致计算开销急剧增大。此外，ViT的固定单尺度图像块划分方式无法生成类似CNN的多尺度层次化特征，而多尺度特征对于处理遥感图像中尺度差异显著的地物目标至关重要。
 
-在遥感图像分割中，基于Transformer的方法也得到了广泛应用。Wang等人[29]提出了BANet，采用Transformer作为骨干网络提取多层级特征，并通过双边感知模块融合不同层级的语义信息，有效提升了对遥感图像中复杂场景的理解能力。Strudel等人[30]提出了Segmenter，采用纯Transformer架构进行语义分割，通过全局注意力机制增强了对大范围地物的识别能力。
+针对上述问题，研究者从两个方向进行了改进。第一个方向是构建层次化的Transformer结构以生成多尺度特征。Wang等人[27]提出了PVT（Pyramid Vision Transformer），设计了具有渐进缩减空间分辨率的金字塔结构，在每个阶段逐步降低特征图分辨率的同时增加通道维度，生成了类似CNN的多尺度特征金字塔。PVT还引入了空间缩减注意力机制，通过在计算注意力前对键（Key）和值（Value）进行空间降采样来降低计算复杂度，为后续密集预测任务中的Transformer骨干设计提供了重要参考。第二个方向是通过局部化策略降低自注意力的计算复杂度。Liu等人[28]提出了Swin Transformer，通过滑动窗口机制将自注意力的计算限制在固定大小的局部窗口内，将计算复杂度从
+O
+(
+N
+2
+)
+O(N 
+2
+ )降低至
+O
+(
+N
+)
+O(N)。同时，通过相邻层之间窗口的规律性移位实现跨窗口信息交互，在不显著增加计算量的前提下维持了全局建模能力。Swin Transformer的层次化设计与窗口注意力机制使其成为密集预测任务中最具影响力的Transformer骨干之一。
 
-然而，尽管Transformer在建模长距离依赖方面具有显著优势，但自注意力机制的计算复杂度与输入分辨率呈二次方关系。即使采用Swin Transformer等局部窗口策略进行优化，当应用于高分辨率遥感图像时，其计算开销仍然较大，在资源受限的实际应用场景中面临部署困难。此外，Transformer对局部细节的建模能力相对较弱，在处理遥感图像中精细的地物边界和小目标时仍存在不足。
+在语义分割领域，Zheng等人[29]提出了SETR（Segmentation Transformer），将ViT作为编码器，首次验证了纯Transformer架构在语义分割任务中的可行性。然而，SETR直接使用ViT的单尺度特征进行解码，缺乏多尺度信息的融合，在处理多尺度地物时效果受限。Xie等人[30]提出了SegFormer，设计了层次化的Mix-Transformer编码器和轻量级的全多层感知机（All-MLP）解码器。SegFormer的编码器通过重叠的图像块嵌入保留了相邻块之间的局部连续性，同时利用高效的自注意力机制进行全局建模。其轻量级的MLP解码器摒弃了复杂的注意力模块，仅通过多层感知机融合不同层级的特征，在多个分割基准上取得了精度与效率的良好平衡，证明了编码器中充分的特征提取可以简化解码器的设计。Cao等人[31]提出了Swin-Unet，首次构建了基于纯Swin Transformer的U形编码器-解码器架构，将U-Net中的CNN模块完全替换为Swin Transformer块，通过块合并和块扩展操作实现特征的下采样和上采样，在医学图像分割任务中验证了Transformer架构可以端到端地替代CNN完成密集预测任务。
+
+在遥感图像分割中，基于Transformer的方法也得到了广泛应用。Wang等人[32]提出了BANet，采用Transformer作为骨干网络提取多层级特征，并设计了双边感知模块将高层语义信息与低层空间细节进行融合，其核心思想是通过变换注意力机制动态地建模不同层级特征之间的关联关系，从而实现更精细的语义-空间信息交互，有效提升了对遥感图像中复杂场景的理解能力。Strudel等人[33]提出了Segmenter，采用纯Transformer架构进行语义分割，在编码器和解码器中均使用Transformer块，通过全局注意力机制增强了对大范围地物的识别能力。然而，纯Transformer架构的计算开销较大，且缺乏CNN在局部特征提取方面的归纳偏置优势，在处理遥感图像中精细的地物边界和小目标时，其性能相比CNN-Transformer混合架构并不总是占优。
+
+然而，尽管Transformer在建模长距离依赖方面具有显著优势，其固有的计算效率问题始终是制约实际应用的核心瓶颈。即使采用Swin Transformer的局部窗口策略，当应用于高分辨率遥感图像（如6000×6000像素）时，窗口数量仍然巨大，计算和内存开销依然可观。此外，局部窗口策略虽然降低了计算复杂度，但也在一定程度上牺牲了Transformer最核心的全局直接交互优势——窗口内的注意力计算实质上退化为一种特殊的局部操作，跨窗口信息仅通过窗口移位间接传递。这一效率与全局建模能力之间的根本矛盾，促使研究者开始探索Transformer之外的全局建模范式，其中状态空间模型凭借其线性复杂度的序列建模能力成为最具前景的替代方案。
 
 1.2.3 基于状态空间模型的语义分割方法
-状态空间模型（State Space Model, SSM）源于控制理论和信号处理领域，通过隐状态的递推更新实现对序列数据的建模[13]。与Transformer的自注意力机制不同，SSM通过线性递推关系处理序列，其计算复杂度与序列长度呈线性关系，在处理长序列时具有显著的效率优势。
+状态空间模型（State Space Model, SSM）源于控制理论和信号处理领域，其基本思想是通过一组隐状态的线性递推来描述输入序列到输出序列的映射关系[13]。具体而言，SSM将输入信号通过状态方程映射为隐状态序列，再通过观测方程将隐状态转化为输出。与Transformer的自注意力机制通过全局配对计算来建模序列依赖关系不同，SSM通过隐状态的逐步递推积累全局信息，其计算复杂度与序列长度呈线性关系（
+O
+(
+N
+)
+O(N)），在处理长序列时具有显著的效率优势。
 
-Gu等人[31]提出了结构化状态空间序列模型（S4），通过对SSM进行结构化参数化，首次在长距离序列建模任务中取得了优异的性能。在此基础上，Gu和Dao[14]进一步提出了Mamba模型，引入了选择性状态空间机制（Selective State Space），通过输入依赖的参数化方式使模型能够根据输入内容自适应地选择性保留或遗忘信息，同时设计了硬件感知的并行扫描算法，在保持线性计算复杂度的同时显著提升了模型的表达能力和计算效率。
+然而，早期的SSM存在一个关键限制：其状态转移矩阵是固定的，无法根据输入内容自适应地调整信息的保留和遗忘策略，导致模型对不同输入的区分能力不足。Gu等人[34]提出的结构化状态空间序列模型（S4）通过对状态转移矩阵进行HiPPO初始化和对角化参数设计，首次在长距离序列建模任务中取得了突破性成果，证明了SSM在捕获长距离依赖关系方面的潜力。但S4的参数仍然是输入无关的，即对所有输入使用相同的状态转移规则，这限制了其对输入内容的选择性处理能力。
 
-Mamba在自然语言处理任务中展现出了与Transformer相当甚至超越的性能后，迅速被引入计算机视觉领域。Liu等人[32]提出了VMamba，设计了二维选择性扫描模块（SS2D），通过四个方向的交叉扫描路径将二维图像特征展开为一维序列进行处理，有效地将Mamba的序列建模能力扩展到二维视觉任务中。Zhu等人[33]提出了Vision Mamba（Vim），采用双向状态空间模型处理图像序列，在图像分类任务中实现了优异的性能。
+在此基础上，Gu和Dao[14]提出了Mamba模型，实现了SSM从线性时不变系统到输入依赖系统的关键跨越。Mamba的核心创新在于将状态转移矩阵和输入矩阵参数化为输入的函数，使得模型能够根据当前输入内容自适应地决定哪些信息应当被保留到隐状态中、哪些信息应当被遗忘。这种选择性状态空间机制（Selective State Space）赋予了模型类似于注意力机制的内容感知能力，但其计算方式仍然是线性递推，保持了
+O
+(
+N
+)
+O(N)的计算复杂度。同时，Mamba设计了硬件感知的并行扫描算法，通过将递推计算重构为并行前缀和运算，充分利用GPU的并行计算能力，在保持理论线性复杂度的同时实现了实际运行速度的大幅提升。
 
-在遥感图像分割领域，基于Mamba的方法同样受到了广泛关注。Chen等人[36]提出了RS3Mamba，将Mamba与CNN相结合用于遥感图像语义分割，通过辅助的选择性状态空间模块增强了多尺度特征的提取能力。Shi等人[15]提出了CM-UNet，将基于CNN的ResNet编码器与基于Mamba的解码器相结合，在解码器中设计了融合通道注意力与空间注意力的CSMamba模块以增强SS2D模块的特征选择能力，并提出了多尺度注意力聚合模块用于跳跃连接处的多尺度特征融合，在多个遥感分割数据集上取得了优异的性能。
+Mamba在自然语言处理任务中展现出了与Transformer相当甚至超越的性能后，迅速被引入计算机视觉领域。然而，将SSM从一维序列扩展到二维图像面临一个根本性挑战：图像数据具有天然的二维空间结构，而SSM本质上是一维序列模型，如何将二维空间信息有效地编码为一维序列并保持空间关系是关键问题。针对这一挑战，Liu等人[35]提出了VMamba，设计了二维选择性扫描模块（SS2D）。SS2D的核心思想是沿四个方向（从左上到右下、从右下到左上、从左下到右上、从右上到左下）分别将二维特征图展开为一维序列，对每个方向独立进行选择性SSM扫描，最后将四个方向的输出进行融合。这种交叉扫描策略确保了特征图上任意两个位置之间至少存在一条扫描路径使其信息可达，从而在保持线性复杂度的同时实现了对二维空间全局依赖关系的有效建模。Zhu等人[36]提出了Vision Mamba（Vim），采用双向状态空间模型处理图像序列，通过正向和反向两条扫描路径捕获全局视觉上下文，在图像分类任务中实现了与ViT相当的性能但具有更低的计算开销。
 
+在语义分割领域，基于Mamba的方法针对密集预测任务的特殊需求进行了针对性设计。Xing等人[37]提出了SegMamba，将Mamba引入三维医学图像分割任务。三维体数据的序列长度远大于二维图像，传统Transformer方法在此场景下面临更为严峻的计算瓶颈，而Mamba的线性复杂度使其能够高效处理长达数百万体素的三维序列，有效建模了体数据中的长距离空间依赖关系。Ruan和Xiang[38]提出了VM-UNet，将Vision Mamba模块嵌入U-Net的编码器-解码器架构中，构建了纯SSM的语义分割网络。VM-UNet的实验结果表明，SSM不仅可以作为Transformer的替代方案用于特征编码，还能够在解码器中有效地进行特征恢复和精细化，验证了SSM作为编码器-解码器骨干的全面可行性。Ma等人[39]提出了U-Mamba，将Mamba模块与CNN模块在编码器中进行混合设计，利用CNN提取局部特征、Mamba捕获全局依赖，两者的协同使模型在局部细节和全局语义两方面均具有良好表现，为CNN与SSM的融合提供了有效范式。
 
-尽管现有基于Mamba的遥感分割方法已展现出良好的精度与效率平衡，但仍存在一些值得关注的问题。一方面，现有方法的解码器通常采用单一路径的序列化设计，全局上下文建模与局部细节增强在同一处理流程中耦合执行，两种本质不同的子任务共享参数空间，可能相互制约，限制了各自的优化潜力。另一方面，部分方法在网络的多个阶段重复施加功能相似的注意力操作，导致计算资源的冗余消耗，模型复杂度和推理开销随之增大，影响了实际部署效率。如何在保持全局建模能力的同时高效增强局部细节，以及如何合理配置注意力机制以避免冗余，是当前基于SSM的遥感分割方法需要进一步解决的问题。
+在遥感图像分割领域，基于Mamba的方法同样受到了广泛关注，并针对遥感图像的特殊需求进行了适配。Chen等人[40]提出了RS3Mamba，将Mamba与CNN相结合用于遥感图像语义分割。RS3Mamba设计了辅助的选择性状态空间模块，通过与CNN分支的协同工作增强了多尺度特征的提取能力，在多个遥感分割基准上展现了SSM在遥感领域的应用潜力。Shi等人[15]提出了CM-UNet，构建了一个将基于CNN的ResNet编码器与基于Mamba的解码器相结合的混合架构。CM-UNet在解码器中设计了CSMamba模块，该模块在SS2D模块的基础上引入了通道注意力和空间注意力门控机制，旨在增强SS2D输出特征的判别性。同时，CM-UNet提出了多尺度注意力聚合（MSAA）模块用于跳跃连接处的多尺度特征融合，该模块同样采用了通道-空间双重注意力来增强融合特征的表征能力。CM-UNet在ISPRS Potsdam、Vaihingen和LoveDA等多个遥感分割数据集上取得了优异的性能，验证了CNN编码器+Mamba解码器这一混合架构的有效性。
+
+尽管上述方法取得了显著进展，但深入分析现有基于Mamba的遥感分割方法，仍可发现两方面值得关注的问题。
+
+第一，全局与局部的耦合处理问题。现有方法的解码器通常采用单一路径的序列化设计，在同一处理流程中先后完成全局上下文建模和局部细节增强两种任务。然而，这两种任务具有本质不同的优化目标：全局上下文建模需要在较大的空间范围内整合语义信息以确保类别预测的一致性，而局部细节增强则需要在精细的空间尺度上保留边缘、纹理等高频信息。将它们耦合在同一路径中意味着两种任务共享相同的参数空间和计算流程，在优化过程中可能相互制约——加强全局建模的参数更新可能损害局部细节的保持，反之亦然。这种耦合限制了模型在两个方面同时达到最优的潜力。
+
+第二，注意力机制的冗余施加问题。部分方法在网络的多个阶段重复使用功能相似的注意力操作。例如，在特征变换阶段已经应用了通道和空间注意力来增强特征选择能力，而在跳跃连接的特征融合阶段又再次施加了类似的通道-空间双重注意力。这种同质注意力的重复堆叠虽然在一定程度上增强了特征聚焦能力，但也带来了显著的参数和计算冗余，且重复的注意力操作在梯度传播过程中可能产生优化干扰，并不能保证性能的等比例提升。
+
+如何将全局建模与局部增强解耦为独立的专用路径使各自获得充分的优化空间，以及如何在网络的不同阶段合理分配注意力机制的功能以避免冗余，是当前基于SSM的遥感分割方法需要进一步解决的关键问题。
 
 1.2.4 多模态遥感图像融合分割方法
-在遥感应用中，不同传感器获取的多模态数据能够提供互补的地表信息，多模态数据融合已成为提升语义分割性能的重要手段[37]。根据融合阶段的不同，多模态融合方法通常可分为早期融合、中期融合和晚期融合三种策略[38]。早期融合在输入层直接拼接不同模态的数据，方法简单但难以处理模态间的异质性。晚期融合在决策层对各模态独立预测的结果进行集成，能够避免模态间的相互干扰，但缺乏特征层面的交互。中期融合在特征提取阶段对不同模态的特征进行交互与整合，能够在保持模态特异性的同时实现特征互补，是目前研究最为广泛的融合策略。
+上述单模态语义分割方法的进展主要集中在模型架构的改进上，但无论采用何种架构，其输入数据均为单一模态的遥感图像。在实际遥感应用中，单一模态数据的信息表征能力往往受限于其自身的成像机理。光学图像能够提供丰富的光谱和纹理信息，但在云层遮挡、光照不足等条件下成像质量严重退化；SAR图像具备全天候、全天时成像能力，但受相干斑噪声干扰且缺乏光谱信息。多模态数据融合通过整合不同传感器的互补信息，可以从根本上弥补单一模态的不足，已成为提升语义分割性能的重要手段[41]。
 
-在光学与高程数据的融合方面，Hazirbas等人[39]提出了FuseNet，采用双分支编码器分别处理RGB图像和深度图像，并将深度分支的多层特征逐级融合至RGB分支的编码器中。然而，这种单向融合方式未能充分利用双向的模态交互信息。Audebert等人[40]采用两个独立的CNN网络分别处理光学图像和数字表面模型（DSM）图像，并通过逐元素相加的方式进行模态特征融合，方法简单但融合深度有限。Ma等人[41]提出了AMM-FuseNet，采用通道注意力机制和密集连接的空间金字塔池化增强多模态特征的表征能力，在一定程度上缓解了简单融合策略的局限性。
+根据融合阶段的不同，多模态融合方法通常可分为早期融合、中期融合和晚期融合三种策略[42]。早期融合在输入层直接拼接不同模态的数据，方法最为简单直接，但由于不同模态数据在数值范围、统计分布和语义表达上存在显著差异，直接拼接可能导致模态间的特征相互干扰，反而降低分割性能。晚期融合在决策层对各模态独立预测的结果进行集成（如投票或加权平均），能够避免模态间特征的直接干扰，但由于各模态的特征提取过程完全独立，缺乏特征层面的交互，无法充分利用模态间的互补信息。中期融合在特征提取的中间阶段对不同模态的特征进行交互与整合，能够在保持模态特异性特征提取的同时实现深层次的特征互补，是目前研究最为广泛且效果最为显著的融合策略。
 
-在光学与SAR图像的融合分割方面，由于两种模态在成像机理上存在本质差异——光学图像反映地物的光谱反射特性，而SAR图像通过后向散射系数表征地表结构特征——跨模态特征融合面临更大的挑战。Li等人[42]提出了MCANet并构建了WHU-OPT-SAR数据集，通过多模态交叉注意力机制提取光学图像和SAR图像中的互补特征，并设计低高层特征融合模块优化分割结果，验证了多模态融合对分割性能的显著提升。Feng等人[43]提出了CMGFNet，通过跨模态门控融合机制自适应地调节不同模态特征的贡献权重，有效应对了模态间语义不一致的问题。Zhang等人[44]提出了CMX，设计了交叉模态特征校正模块，通过双向特征交互实现不同模态之间的有效融合，其通用的跨模态融合范式对光学与SAR图像的融合也具有重要的借鉴意义。
+在中期融合的具体实现方式上，早期工作主要采用简单的特征拼接或逐元素操作。Hazirbas等人[43]提出了FuseNet，采用双分支编码器分别处理RGB图像和深度图像，并将深度分支各层的特征通过逐元素相加的方式融合至RGB分支的编码器中。FuseNet的设计思想在于让深度信息作为辅助信息逐级增强RGB特征的表达能力。然而，这种单向融合方式存在两个局限：一是深度分支向RGB分支的单向信息传递未能实现双向的模态交互，RGB分支的信息无法反过来指导深度特征的提取；二是简单的逐元素相加难以建模两种模态特征之间的复杂非线性关系，融合深度有限。Audebert等人[44]同样采用双分支CNN网络分别处理光学图像和数字表面模型（DSM）图像，并通过逐元素相加进行特征融合，面临类似的局限。
 
-尽管上述多模态融合方法在一定程度上提升了分割性能，但仍存在一些需要解决的问题。首先，多数方法在融合过程中采用简单的特征拼接或逐元素相加策略，难以充分建模不同模态特征之间的关联性和互补性。其次，光学与SAR图像在分辨率、噪声水平和语义表达上的差异，使得不同尺度特征的跨模态对齐和融合仍然具有挑战性。此外，如何在多模态融合框架中高效地整合先进的序列建模技术，以同时实现全局上下文的跨模态交互和局部细节的精细增强，是一个值得深入探索的研究方向。
+为解决简单融合策略的不足，研究者们引入了注意力机制来实现更精细的模态特征交互。Ma等人[45]提出了AMM-FuseNet，采用通道注意力机制动态评估不同模态各通道特征的重要性，并结合密集连接的空间金字塔池化增强多尺度特征的表征能力，在一定程度上缓解了简单融合策略中模态信息利用不充分的问题。然而，通道注意力仅在通道维度上对特征进行重标定，无法在空间维度上精细地对齐不同模态的特征响应，对于存在空间错位的多模态数据融合效果有限。
+
+在光学与SAR图像的融合分割方面，由于两种模态在成像机理上的本质差异，跨模态特征融合面临更大的挑战。光学图像反映地物的光谱反射特性，其特征表达主要体现在颜色、纹理和光谱梯度等方面；而SAR图像通过后向散射系数表征地表结构特征，其特征表达主要体现在散射强度、极化特性和空间纹理等方面。这两种截然不同的特征表达方式使得简单的特征级融合难以有效地建模模态间的语义对应关系。此外，SAR图像固有的相干斑噪声会在融合过程中传播至光学特征空间，可能干扰光学特征的判别性。
+
+针对光学与SAR图像融合的特殊挑战，Li等人[46]提出了MCANet并构建了WHU-OPT-SAR数据集。MCANet设计了多模态交叉注意力模块，其核心思想是以一种模态的特征作为查询（Query），以另一种模态的特征作为键（Key）和值（Value），通过交叉注意力计算来提取两种模态之间的互补信息。这种交叉注意力机制相比简单的特征拼接或相加，能够更精细地建模模态间的语义关联，动态地从对方模态中选取最相关的信息进行融合。同时，MCANet还设计了低高层特征融合模块，将浅层的空间细节与深层的语义信息相结合以优化分割结果。实验结果验证了交叉注意力机制在光学-SAR融合任务中的显著优势。Feng等人[47]提出了CMGFNet，进一步引入了门控融合机制来解决模态间信息质量不均衡的问题。门控机制通过学习一组空间自适应的融合权重，使模型能够根据不同空间位置的特征质量动态调节光学和SAR特征的贡献比例：在光学特征质量较高的区域（如无云覆盖区域）赋予光学特征更大的权重，在SAR特征更可靠的区域（如云层覆盖区域）则加大SAR特征的权重，有效应对了模态间语义不一致和信息质量不均衡的问题。Zhang等人[48]提出了CMX，设计了交叉模态特征校正模块，通过双向特征交互实现不同模态之间的有效融合。CMX的设计思想具有较好的通用性，其跨模态融合范式不局限于特定的模态组合，对光学与SAR图像的融合也具有重要的借鉴意义。
+
+综上所述，多模态遥感图像融合分割方法从早期的简单特征拼接发展到基于注意力机制的精细交互融合，在融合深度和效果上取得了显著进步。然而，现有方法仍存在以下需要进一步解决的问题：首先，多数方法在融合过程中仅关注单一尺度的特征交互，而光学与SAR图像在不同尺度上的特征互补性存在差异——在低层级，两种模态的纹理和边缘信息差异显著，需要精细的空间对齐；在高层级，两种模态的语义信息趋于一致，可以进行更直接的语义融合——缺乏对多尺度跨模态交互的系统性考虑。其次，现有方法的解码器设计大多沿用标准的CNN或Transformer架构，未能充分利用SSM等新型全局建模技术在多模态融合特征重建中的潜力。如何在多模态融合框架中有效整合状态空间模型的高效全局建模能力，并针对多模态场景设计专用的多尺度跨模态融合策略，是一个值得深入探索的研究方向。
 
 1.3 主要研究内容
 针对上述研究现状中存在的问题，本文围绕基于状态空间模型的遥感图像语义分割方法展开研究，致力于解决现有方法中全局与局部特征建模耦合、注意力机制冗余以及多模态特征融合不充分等问题。具体研究内容如下：
 
-（1）针对现有基于SSM的遥感分割方法中全局上下文建模与局部细节增强在单一路径中耦合处理、注意力机制在不同网络阶段冗余堆叠等问题，本文提出了基于双路径解耦的语义分割网络DP-UNet。在解码器中设计了双路径解耦VSS模块（DVSS），采用"共享基座、分别增强"的策略，以SS2D模块作为共享基座生成基础特征，全局路径保留完整的上下文语义信息，局部路径通过高效通道注意力（ECA）和参数域可调卷积（PMC）增强边缘与纹理等细节特征，并通过自适应路径融合门控（APFG）实现两路径特征的自适应整合。同时，设计了轻量化多尺度空间核模块（MSK），在压缩通道空间内以纯空间注意力完成多尺度特征融合，避免通道注意力的冗余施加。
+（1）针对现有基于SSM的遥感分割方法中全局上下文建模与局部细节增强在单一路径中耦合处理、注意力机制在不同网络阶段冗余堆叠等问题，本文提出了基于双路径解耦的语义分割网络DP-UNet。全局上下文建模与局部细节增强是语义分割中两个本质不同的子任务：前者需要在较大空间范围内整合语义信息以保证类别预测的区域一致性，后者则需要在精细空间尺度上保留高频细节以确保分割边界的准确性。现有方法将两者置于同一处理路径中顺序执行，导致两种任务的参数优化相互制约。同时，功能相似的注意力机制在特征变换和特征融合等多个阶段被重复施加，带来了不必要的计算冗余。为此，本文在解码器中设计了双路径解耦VSS模块（DVSS），采用"共享基座、分别增强"的策略。该设计的核心思想是：全局建模和局部增强虽然是不同的任务，但它们共享相同的底层特征基础。因此，DVSS首先以SS2D模块作为共享基座生成统一的基础特征表示，随后将其分发至两条专用路径——全局路径直接保留该基础特征以维持完整的上下文语义信息，局部路径则在此基础上通过高效通道注意力（ECA）进行通道重标定，聚焦于信息量丰富的特征通道，并利用所设计的参数域可调卷积（PMC）在卷积权重的参数空间中引入可学习的中心抑制先验，打破标准卷积的中心主导倾向，增强对边缘与纹理等局部细节的感知能力。最终通过自适应路径融合门控（APFG）根据各路径特征的信息量动态分配融合权重，实现两条路径特征的自适应整合。在多尺度特征融合阶段，考虑到DVSS的局部路径已承担了通道维度的特征重标定任务，本文设计了轻量化多尺度空间核模块（MSK），在压缩通道空间内以纯空间注意力完成多尺度特征融合，避免通道注意力在网络中的冗余施加，从而在提升分割精度的同时有效降低计算开销。
 
-（2）针对单一模态遥感数据特征表征能力有限、光学与SAR图像模态差异显著导致特征融合不充分等问题，本文在DP-UNet的基础上进一步扩展至多模态融合场景，提出了基于跨模态融合的语义分割网络。设计了双分支编码器分别提取光学图像和SAR图像的模态专属特征，提出跨模态多尺度融合模块（CrossModalMSK），通过模态内多尺度空间特征提取和模态间交叉注意力机制，实现不同模态、不同尺度特征之间的有效对齐与互补融合。解码器端复用DVSS模块对融合后的多模态特征进行渐进式上采样与精细化重建。
+（2）针对单一模态遥感数据特征表征能力有限、光学与SAR图像模态差异显著导致特征融合不充分等问题，本文在DP-UNet的基础上进一步扩展至多模态融合场景，提出了基于跨模态融合的语义分割网络。单一模态遥感数据在面对复杂地表环境时存在信息不足的固有局限：光学图像易受云层遮挡和光照变化影响，在恶劣天气条件下地物信息严重缺失；SAR图像虽能全天候成像，但受相干斑噪声干扰且缺乏光谱信息，对地物类型的区分能力有限。两种模态在信息维度上具有天然的互补性——光学图像擅长表征地物的光谱属性和视觉纹理，SAR图像擅长反映地表的几何结构和散射特性。然而，两种模态在成像机理、特征分布和噪声特性上的巨大差异，使得简单的特征拼接或相加难以有效挖掘模态间的互补信息。为此，本文设计了双分支编码器分别提取光学图像和SAR图像的模态专属特征，避免异质模态特征在早期阶段的相互干扰。在此基础上，提出了跨模态多尺度融合模块（CrossModalMSK），该模块通过模态内多尺度空间特征提取分别捕获各模态在不同尺度上的空间模式，并通过模态间交叉注意力机制建模两种模态特征之间的语义关联性，从对方模态中动态提取最具互补价值的信息，实现不同模态、不同尺度特征之间的有效对齐与协同融合。解码器端复用第一个工作中已验证有效的DVSS模块，对融合后的多模态特征进行全局-局部解耦增强与渐进式精细化重建，将单模态工作中的核心设计思想自然地延伸至多模态场景。
 
-（3）为验证所提方法的有效性，在ISPRS Potsdam、ISPRS Vaihingen、LoveDA和WHU-OPT-SAR四个公开遥感数据集上开展了系统性的实验评估，包括与多种代表性方法的对比实验、关键模块的消融实验以及模型复杂度分析，全面验证了所提方法在分割精度和计算效率方面的优势。
+（3）为验证所提方法的有效性，本文在ISPRS Potsdam、ISPRS Vaihingen、LoveDA和WHU-OPT-SAR四个公开遥感数据集上开展了系统性的实验评估。实验设计涵盖三个层面：首先，与多种具有代表性的现有方法进行全面的对比实验，从平均交并比、总体精度、各类别F1分数等多个指标维度验证所提方法的分割性能优势；其次，通过逐步添加和移除关键模块的消融实验，系统性地验证DVSS、PMC、MSK、CrossModalMSK等核心模块各自的贡献及其协同效应；最后，从浮点运算量、参数量和推理速度等方面进行模型复杂度分析，全面评估所提方法在精度与效率之间的平衡能力。
 
 1.4 本文组织结构
 本文聚焦于基于状态空间模型的遥感图像语义分割方法研究，全文共分为五章，各章主要内容安排如下：
 
-第一章为绪论。首先介绍了遥感图像语义分割的研究背景与意义；其次分别从基于卷积神经网络的方法、基于Transformer的方法、基于状态空间模型的方法以及多模态融合方法四个方面综述了国内外研究现状；接着根据当前研究中存在的问题，确定了本文的主要研究内容；最后介绍了论文的组织结构。
+第一章为绪论。首先介绍了遥感图像语义分割的研究背景与意义；其次分别从基于卷积神经网络的方法、基于Transformer的方法、基于状态空间模型的方法以及多模态融合方法四个方面综述了国内外研究现状，分析了各类方法的技术演进脉络、核心优势及存在的局限性；接着根据当前研究中存在的问题，确定了本文的主要研究内容；最后介绍了论文的组织结构。
 
 第二章为相关理论与技术基础。首先介绍了语义分割任务的基本概念和编码器-解码器框架；其次阐述了状态空间模型的基本原理，包括从S4到Mamba的演进过程以及二维选择性扫描机制；然后介绍了本文涉及的注意力机制和多模态遥感数据的基本特性；接着介绍了本文实验所用的四个公开数据集和语义分割任务的评价指标；最后对本章内容进行小结。
 
-第三章为基于双路径解耦的单模态遥感图像语义分割方法。首先分析了现有基于SSM的分割方法中存在的全局-局部耦合和注意力冗余问题；然后详细介绍了DP-UNet的整体架构以及DVSS模块、PMC模块和MSK模块的设计原理；接着在ISPRS Potsdam、ISPRS Vaihingen和LoveDA三个数据集上进行实验分析；最后对本章内容进行小结。
+第三章为基于双路径解耦的单模态遥感图像语义分割方法。首先分析了现有基于SSM的分割方法中存在的全局-局部耦合和注意力冗余问题；然后详细介绍了DP-UNet的整体架构以及DVSS模块、PMC模块和MSK模块的设计原理与实现细节；接着在ISPRS Potsdam、ISPRS Vaihingen和LoveDA三个数据集上进行对比实验、消融实验和模型复杂度分析；最后对本章内容进行小结。
 
-第四章为基于跨模态融合的多模态遥感图像语义分割方法。首先分析了单模态分割方法的局限性以及光学与SAR图像跨模态融合的挑战；然后详细介绍了多模态融合网络的整体架构以及跨模态多尺度融合模块的设计；接着在WHU-OPT-SAR数据集上进行实验分析；最后对本章内容进行小结。
+第四章为基于跨模态融合的多模态遥感图像语义分割方法。首先分析了单模态分割方法的局限性以及光学与SAR图像跨模态融合的挑战；然后详细介绍了多模态融合网络的整体架构以及跨模态多尺度融合模块的设计原理；接着在WHU-OPT-SAR数据集上进行实验分析；最后对本章内容进行小结。
 
 第五章为总结与展望。总结了本文的主要研究工作和创新点，分析了当前工作的局限性，并对未来的研究方向进行了展望。
 
@@ -124,55 +183,395 @@ Mamba在自然语言处理任务中展现出了与Transformer相当甚至超越�
 
 [17] Zhou Z, Siddiquee M M R, Tajbakhsh N, et al. UNet++: A nested U-Net architecture for medical image segmentation[C]//Deep Learning in Medical Image Analysis and Multimodal Learning for Clinical Decision Support. Springer, 2018: 3-11.
 
-[18] Chen L C, Papandreou G, Kokkinos I, et al. DeepLab: Semantic image segmentation with deep convolutional nets, atrous convolution, and fully connected CRFs[J]. IEEE Transactions on Pattern Analysis and Machine Intelligence, 2018, 40(4): 834-848.
+[18] He K, Zhang X, Ren S, et al. Deep residual learning for image recognition[C]//Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR), 2016: 770-778.
 
-[19] Zhao H, Shi J, Qi X, et al. Pyramid scene parsing network[C]//Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR), 2017: 2881-2890.
+[19] Chen L C, Papandreou G, Kokkinos I, et al. DeepLab: Semantic image segmentation with deep convolutional nets, atrous convolution, and fully connected CRFs[J]. IEEE Transactions on Pattern Analysis and Machine Intelligence, 2018, 40(4): 834-848.
 
-[20] Badrinarayanan V, Kendall A, Cipolla R. SegNet: A deep convolutional encoder-decoder architecture for image segmentation[J]. IEEE Transactions on Pattern Analysis and Machine Intelligence, 2017, 39(12): 2481-2495.
+[20] Zhao H, Shi J, Qi X, et al. Pyramid scene parsing network[C]//Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR), 2017: 2881-2890.
 
-[21] Yu C, Wang J, Peng C, et al. BiSeNet: Bilateral segmentation network for real-time semantic segmentation[C]//Proceedings of the European Conference on Computer Vision (ECCV). Springer, 2018: 325-341.
+[21] Badrinarayanan V, Kendall A, Cipolla R. SegNet: A deep convolutional encoder-decoder architecture for image segmentation[J]. IEEE Transactions on Pattern Analysis and Machine Intelligence, 2017, 39(12): 2481-2495.
 
-[22] Howard A, Sandler M, Chu G, et al. Searching for MobileNetV3[C]//Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV), 2019: 1314-1324.
+[22] Yu C, Wang J, Peng C, et al. BiSeNet: Bilateral segmentation network for real-time semantic segmentation[C]//Proceedings of the European Conference on Computer Vision (ECCV). Springer, 2018: 325-341.
 
-[23] Wang L, Li R, Zhang C, et al. UNetFormer: A UNet-like transformer for efficient semantic segmentation of remote sensing urban scene imagery[J]. ISPRS Journal of Photogrammetry and Remote Sensing, 2022, 190: 196-214.
+[23] Howard A, Sandler M, Chu G, et al. Searching for MobileNetV3[C]//Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV), 2019: 1314-1324.
 
 [24] Li R, Zheng S, Zhang C, et al. ABCNet: Attentive bilateral contextual network for efficient semantic segmentation of fine-resolution remotely sensed imagery[J]. ISPRS Journal of Photogrammetry and Remote Sensing, 2021, 181: 84-98.
 
-[25] Dosovitskiy A, Beyer L, Kolesnikov A, et al. An image is worth 16x16 words: Transformers for image recognition at scale[C]//Proceedings of the International Conference on Learning Representations (ICLR), 2021.
+[25] Wang L, Li R, Zhang C, et al. UNetFormer: A UNet-like transformer for efficient semantic segmentation of remote sensing urban scene imagery[J]. ISPRS Journal of Photogrammetry and Remote Sensing, 2022, 190: 196-214.
 
-[26] Zheng S, Lu J, Zhao H, et al. Rethinking semantic segmentation from a sequence-to-sequence perspective with transformers[C]//Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR), 2021: 6881-6890.
+[26] Dosovitskiy A, Beyer L, Kolesnikov A, et al. An image is worth 16x16 words: Transformers for image recognition at scale[C]//Proceedings of the International Conference on Learning Representations (ICLR), 2021.
 
-[27] Xie E, Wang W, Yu Z, et al. SegFormer: Simple and efficient design for semantic segmentation with transformers[C]//Advances in Neural Information Processing Systems (NeurIPS), 2021: 12077-12090.
+[27] Wang W, Xie E, Li X, et al. Pyramid vision transformer: A versatile backbone for dense prediction without convolutions[C]//Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV), 2021: 568-578.
 
 [28] Liu Z, Lin Y, Cao Y, et al. Swin Transformer: Hierarchical vision transformer using shifted windows[C]//Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV), 2021: 10012-10022.
 
-[29] Wang L, Li R, Duan C, et al. A novel transformer based semantic segmentation scheme for fine-resolution remote sensing images[J]. IEEE Geoscience and Remote Sensing Letters, 2022, 19: 1-5.
+[29] Zheng S, Lu J, Zhao H, et al. Rethinking semantic segmentation from a sequence-to-sequence perspective with transformers[C]//Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR), 2021: 6881-6890.
 
-[30] Strudel R, Garcia R, Laptev I, et al. Segmenter: Transformer for semantic segmentation[C]//Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV), 2021: 7262-7272.
+[30] Xie E, Wang W, Yu Z, et al. SegFormer: Simple and efficient design for semantic segmentation with transformers[C]//Advances in Neural Information Processing Systems (NeurIPS), 2021: 12077-12090.
 
-[31] Gu A, Goel K, Ré C. Efficiently modeling long sequences with structured state spaces[C]//Proceedings of the International Conference on Learning Representations (ICLR), 2022.
+[31] Cao H, Wang Y, Chen J, et al. Swin-Unet: Unet-like pure transformer for medical image segmentation[C]//Proceedings of the European Conference on Computer Vision (ECCV) Workshops. Springer, 2022: 205-218.
 
-[32] Liu Y, Tian Y, Zhao Y, et al. VMamba: Visual state space model[J]. arXiv preprint arXiv:2401.10166, 2024.
+[32] Wang L, Li R, Duan C, et al. A novel transformer based semantic segmentation scheme for fine-resolution remote sensing images[J]. IEEE Geoscience and Remote Sensing Letters, 2022, 19: 1-5.
 
-[33] Zhu L, Liao B, Zhang Q, et al. Vision Mamba: Efficient visual representation learning with bidirectional state space model[J]. arXiv preprint arXiv:2401.09417, 2024.
+[33] Strudel R, Garcia R, Laptev I, et al. Segmenter: Transformer for semantic segmentation[C]//Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV), 2021: 7262-7272.
 
-[34] Xing Z, Ye T, Yang Y, et al. SegMamba: Long-range sequential modeling Mamba for 3D medical image segmentation[J]. arXiv preprint arXiv:2401.13560, 2024.
+[34] Gu A, Goel K, Ré C. Efficiently modeling long sequences with structured state spaces[C]//Proceedings of the International Conference on Learning Representations (ICLR), 2022.
 
-[35] Ruan J, Xiang S. VM-UNet: Vision Mamba UNet for medical image segmentation[J]. arXiv preprint arXiv:2402.02491, 2024.
+[35] Liu Y, Tian Y, Zhao Y, et al. VMamba: Visual state space model[J]. arXiv preprint arXiv:2401.10166, 2024.
 
-[36] Chen T, Zhu L, Niu B, et al. RS3Mamba: Visual state space model for remote sensing image semantic segmentation[J]. IEEE Geoscience and Remote Sensing Letters, 2024.
+[36] Zhu L, Liao B, Zhang Q, et al. Vision Mamba: Efficient visual representation learning with bidirectional state space model[J]. arXiv preprint arXiv:2401.09417, 2024.
 
-[37] Gao L, Hong D, Yao J, et al. Spectral superresolution of multispectral imagery with joint sparse and low-rank learning[J]. IEEE Transactions on Geoscience and Remote Sensing, 2021, 59(3): 2269-2280.
+[37] Xing Z, Ye T, Yang Y, et al. SegMamba: Long-range sequential modeling Mamba for 3D medical image segmentation[J]. arXiv preprint arXiv:2401.13560, 2024.
 
-[38] Zhang J. Multi-source remote sensing data fusion: Status and trends[J]. International Journal of Image and Data Fusion, 2010, 1(1): 5-24.
-[39] Hazirbas C, Ma L, Domokos C, et al. FuseNet: Incorporating depth into semantic segmentation via fusion-based CNN architecture[C]//Proceedings of the Asian Conference on Computer Vision (ACCV). Springer, 2016: 213-228.
+[38] Ruan J, Xiang S. VM-UNet: Vision Mamba UNet for medical image segmentation[J]. arXiv preprint arXiv:2402.02491, 2024.
 
-[40] Audebert N, Le Saux B, Lefèvre S. Beyond RGB: Very high resolution urban remote sensing with multimodal deep networks[J]. ISPRS Journal of Photogrammetry and Remote Sensing, 2018, 140: 20-32.
+[39] Ma J, Li F, Wang B. U-Mamba: Enhancing long-range dependency for biomedical image segmentation[J]. arXiv preprint arXiv:2401.04722, 2024.
 
-[41] Marcos D, Volpi M, Kellenberger B, et al. Land cover mapping at very high resolution with rotation equivariant CNNs: Towards small yet accurate models[J]. ISPRS Journal of Photogrammetry and Remote Sensing, 2018, 145: 96-107.
+[40] Chen T, Zhu L, Niu B, et al. RS3Mamba: Visual state space model for remote sensing image semantic segmentation[J]. IEEE Geoscience and Remote Sensing Letters, 2024.
 
-[42] Li X, Zhang G, Cui H, et al. MCANet: A joint semantic segmentation framework of optical and SAR images for land use classification[J]. International Journal of Applied Earth Observation and Geoinformation, 2022, 106: 102638.
+[41] Gao L, Hong D, Yao J, et al. Spectral superresolution of multispectral imagery with joint sparse and low-rank learning[J]. IEEE Transactions on Geoscience and Remote Sensing, 2021, 59(3): 2269-2280.
 
-[43] Feng J, Wang L, Yu H, et al. CMGFNet: A cross-modal gated fusion network for building extraction from very high-resolution remote sensing images and GIS data[J]. ISPRS Journal of Photogrammetry and Remote Sensing, 2022, 188: 61-76.
+[42] Zhang J. Multi-source remote sensing data fusion: Status and trends[J]. International Journal of Image and Data Fusion, 2010, 1(1): 5-24.
 
-[44] Zhang J, Liu H, Yang K, et al. CMX: Cross-modal fusion for RGB-X semantic segmentation with transformers[J]. IEEE Transactions on Intelligent Transportation Systems, 2023, 24(12): 14679-14694.
+[43] Hazirbas C, Ma L, Domokos C, et al. FuseNet: Incorporating depth into semantic segmentation via fusion-based CNN architecture[C]//Proceedings of the Asian Conference on Computer Vision (ACCV). Springer, 2016: 213-228.
+
+[44] Audebert N, Le Saux B, Lefèvre S. Beyond RGB: Very high resolution urban remote sensing with multimodal deep networks[J]. ISPRS Journal of Photogrammetry and Remote Sensing, 2018, 140: 20-32.
+
+[45] Ma X, Mao Z, Li X, et al. AMM-FuseNet: Attention-based multi-modal image fusion network for land cover mapping[J]. Remote Sensing, 2022, 14(18): 4458.
+
+[46] Li X, Zhang G, Cui H, et al. MCANet: A joint semantic segmentation framework of optical and SAR images for land use classification[J]. International Journal of Applied Earth Observation and Geoinformation, 2022, 106: 102638.
+
+
+
+
+
+# 第二章 相关理论与技术基础
+
+## 2.1 引言
+
+本文的研究工作主要基于状态空间模型和注意力机制等深度学习方法，在单模态和多模态遥感图像语义分割领域展开。为建立后续研究的理论基础，本章将系统介绍相关的核心理论与关键技术。首先，阐述语义分割任务的基本概念和编码器-解码器架构；其次，详细介绍状态空间模型的基本原理及其从S4到Mamba的演进过程；然后，介绍本文涉及的通道注意力、空间注意力和交叉注意力等注意力机制；接着，分析光学遥感图像与SAR图像的数据特性及其互补关系；随后，介绍本文实验所采用的四个公开数据集及语义分割任务的评价指标；最后，对本章内容进行小结。
+
+## 2.2 语义分割基础
+
+### 2.2.1 语义分割任务概述
+
+语义分割是计算机视觉中的一项基础任务，其目标是对输入图像中的每一个像素赋予一个语义类别标签，从而实现对图像内容的像素级理解。与图像分类任务仅输出整幅图像的类别标签不同，语义分割要求模型同时完成两个目标：一是对图像内容进行高层语义理解以确定每个像素"属于什么类别"，二是保留精确的空间位置信息以确定每个像素"位于什么位置"。
+
+形式化地，给定一幅输入图像 $I \in \mathbb{R}^{H \times W \times C}$，其中 $H$、$W$、$C$ 分别表示图像的高度、宽度和通道数，语义分割的目标是学习一个映射函数 $f$，将输入图像映射为一幅标签图 $Y \in \{0, 1, \ldots, K-1\}^{H \times W}$，其中 $K$ 为类别总数。对于图像中的每个像素位置 $(i, j)$，模型预测其所属的类别标签 $y_{ij} \in \{0, 1, \ldots, K-1\}$。
+
+在遥感图像语义分割中，常见的语义类别包括建筑物、道路、植被、水体、裸地、车辆等地物类型。与自然场景图像相比，遥感图像具有以下特殊性：图像分辨率高、覆盖面积大，单幅图像可能包含数千万甚至上亿像素；地物尺度差异显著，从数百米的大面积农田到数米的单辆车辆；俯视角度导致地物形态与日常视角存在较大差异。这些特性对语义分割算法的特征提取能力、多尺度建模能力和计算效率均提出了更高的要求。
+
+### 2.2.2 编码器-解码器架构
+
+编码器-解码器架构是当前语义分割领域最主流的网络设计范式，其核心思想是将语义理解和空间恢复分别交由编码器和解码器两个阶段完成。
+
+**编码器**的功能是从输入图像中逐层提取从低级到高级的层次化特征。通过连续的卷积和下采样操作，编码器逐步扩大感受野、增加特征的语义抽象程度，同时降低特征图的空间分辨率。假设编码器包含 $L$ 个阶段，每个阶段 $l$ 输出一个特征图 $F_l \in \mathbb{R}^{\frac{H}{2^l} \times \frac{W}{2^l} \times C_l}$，其中 $C_l$ 为该阶段的通道数。随着层级的加深，特征图的空间分辨率逐步降低而语义信息逐步增强。常用的编码器骨干网络包括ResNet、VGG等经典分类网络，它们在大规模图像数据集上预训练获得的特征提取能力可以通过迁移学习应用于语义分割任务。
+
+**解码器**的功能是将编码器输出的低分辨率高语义特征逐步恢复至原始分辨率，生成像素级的分割预测。解码器通常通过转置卷积或双线性插值上采样等操作逐步提高特征图的空间分辨率，同时通过卷积操作对特征进行精细化处理。
+
+**跳跃连接**是连接编码器和解码器的关键机制。由于编码器的下采样过程不可避免地丢失了空间细节信息，仅依靠解码器的上采样难以恢复精确的空间位置和边界细节。跳跃连接将编码器各层的高分辨率特征直接传递至解码器的对应层，使解码器在恢复空间细节时能够利用编码器保留的精确位置信息。这种设计使得解码器能够同时获取来自深层的语义信息和来自浅层的空间细节信息，有效缓解了语义抽象与空间精度之间的矛盾。
+
+[此处插入图：编码器-解码器架构示意图。图中展示对称的U形结构，左侧为编码器（逐层下采样，特征图变小、通道变多），右侧为解码器（逐层上采样，特征图变大、通道变少），中间用箭头标注跳跃连接。各层标注特征图尺寸和通道数。]
+
+编码器-解码器架构的整体工作流程可以概括为：编码器负责"理解"图像内容，将像素级的原始信息逐步压缩为紧凑的语义表示；解码器负责"还原"空间结构，将语义表示逐步展开为像素级的类别预测；跳跃连接负责在两者之间传递空间细节信息，确保最终预测既具有正确的语义理解又保持精确的空间定位。
+
+### 2.2.3 损失函数
+
+损失函数用于量化模型预测结果与真实标签之间的差异，是指导模型参数优化的核心要素。在语义分割任务中，常用的损失函数包括交叉熵损失和Dice损失，本文采用两者的联合损失来训练模型。
+
+**交叉熵损失（Cross-Entropy Loss）** 是语义分割中最基础也最广泛使用的损失函数。对于单个像素，其交叉熵损失定义为模型预测的类别概率分布与真实标签的独热编码之间的交叉熵。给定一幅图像中所有像素的预测结果和真实标签，交叉熵损失的计算公式为：
+
+$$\mathcal{L}_{CE} = -\frac{1}{N}\sum_{i=1}^{N}\sum_{k=0}^{K-1} y_{i,k} \log(\hat{y}_{i,k})$$
+
+其中，$N$ 为图像中的像素总数，$K$ 为类别总数，$y_{i,k}$ 为第 $i$ 个像素的真实标签的独热编码（当该像素属于类别 $k$ 时为1，否则为0），$\hat{y}_{i,k}$ 为模型预测第 $i$ 个像素属于类别 $k$ 的概率（通常由Softmax函数输出）。交叉熵损失对每个像素独立计算，能够有效引导模型学习正确的类别预测。然而，当数据集中不同类别的像素数量严重不平衡时（例如遥感图像中背景类像素远多于车辆类像素），交叉熵损失容易被多数类主导，导致模型对少数类的分割效果不佳。
+
+**Dice损失（Dice Loss）** 基于Dice系数设计，能够直接优化预测区域与真实区域之间的重叠度，对类别不平衡问题具有较好的鲁棒性。Dice系数衡量的是两个集合之间的相似度，其值越接近1表示两个集合越相似。Dice损失的计算公式为：
+
+$$\mathcal{L}_{Dice} = 1 - \frac{2\sum_{i=1}^{N} y_i \hat{y}_i + \epsilon}{\sum_{i=1}^{N} y_i + \sum_{i=1}^{N} \hat{y}_i + \epsilon}$$
+
+其中，$y_i$ 为第 $i$ 个像素的真实标签，$\hat{y}_i$ 为对应的预测概率，$\epsilon$ 为平滑因子（通常取一个较小的正数，如 $10^{-5}$），用于避免分母为零的数值问题。Dice损失从整体区域重叠的角度评估分割质量，而非逐像素独立计算，因此对少数类别更加敏感，能够有效缓解类别不平衡问题。
+
+本文采用交叉熵损失与Dice损失的联合损失来训练模型，综合利用两者的优势：
+
+$$\mathcal{L} = \mathcal{L}_{CE} + \mathcal{L}_{Dice}$$
+
+交叉熵损失提供了稳定的逐像素梯度信号，有利于模型在训练初期快速收敛；Dice损失则从区域重叠的角度进行优化，有助于提升少数类别的分割精度和整体分割质量。
+
+## 2.3 状态空间模型
+
+状态空间模型是本文网络架构的核心理论基础。本节将从连续状态空间模型的基本定义出发，介绍其离散化过程，进而阐述从S4到Mamba的技术演进，最后详细介绍将一维SSM扩展到二维图像处理的SS2D机制。
+
+### 2.3.1 连续状态空间模型
+
+状态空间模型起源于控制理论和信号处理领域，是一类通过隐状态（hidden state）的线性递推来描述输入序列到输出序列映射关系的数学模型。连续时间的状态空间模型由以下一组线性常微分方程定义：
+
+$$h'(t) = \mathbf{A}h(t) + \mathbf{B}x(t)$$
+
+$$y(t) = \mathbf{C}h(t) + \mathbf{D}x(t)$$
+
+其中，$x(t) \in \mathbb{R}$ 为输入信号，$y(t) \in \mathbb{R}$ 为输出信号，$h(t) \in \mathbb{R}^{N}$ 为 $N$ 维隐状态向量，$\mathbf{A} \in \mathbb{R}^{N \times N}$ 为状态转移矩阵，$\mathbf{B} \in \mathbb{R}^{N \times 1}$ 为输入矩阵，$\mathbf{C} \in \mathbb{R}^{1 \times N}$ 为输出矩阵，$\mathbf{D} \in \mathbb{R}$ 为直连矩阵。第一个方程称为状态方程，描述了隐状态如何随时间演化——当前时刻的隐状态变化率取决于当前隐状态本身（通过 $\mathbf{A}$ 矩阵）和当前输入（通过 $\mathbf{B}$ 矩阵）的共同作用。第二个方程称为观测方程，描述了如何从隐状态生成输出。在实际应用中，$\mathbf{D}$ 通常设置为零，因为输入到输出的直连可以通过残差连接实现。
+
+状态空间模型的核心优势在于其通过隐状态 $h(t)$ 对历史输入信息进行压缩存储：每个时刻的隐状态包含了从过去到当前所有输入信息的汇总，而这种信息积累是通过线性递推逐步完成的，无需像自注意力机制那样显式计算所有位置对之间的关系。因此，SSM在理论上能够以线性的计算复杂度建模任意长度的序列依赖关系。
+
+### 2.3.2 离散化与计算实现
+
+由于深度学习中的数据通常以离散序列的形式存在（如图像像素序列、文本词元序列），需要将连续状态空间模型离散化为离散时间系统。离散化通过引入一个步长参数 $\Delta$ 来实现，它决定了连续模型在时间轴上的采样间隔。
+
+采用零阶保持（Zero-Order Hold, ZOH）方法进行离散化，离散化后的状态转移矩阵 $\overline{\mathbf{A}}$ 和输入矩阵 $\overline{\mathbf{B}}$ 分别为：
+
+$$\overline{\mathbf{A}} = \exp(\Delta \mathbf{A})$$
+
+$$\overline{\mathbf{B}} = (\Delta \mathbf{A})^{-1}(\exp(\Delta \mathbf{A}) - \mathbf{I}) \cdot \Delta \mathbf{B}$$
+
+离散化后，系统的递推计算形式为：
+
+$$h_t = \overline{\mathbf{A}} h_{t-1} + \overline{\mathbf{B}} x_t$$
+
+$$y_t = \mathbf{C} h_t$$
+
+其中，$h_t$ 为第 $t$ 个时间步的隐状态，$x_t$ 为第 $t$ 个输入，$y_t$ 为第 $t$ 个输出。该递推公式表明，每个时间步的隐状态由前一时刻的隐状态经状态转移矩阵 $\overline{\mathbf{A}}$ 变换后，与当前输入经输入矩阵 $\overline{\mathbf{B}}$ 变换的结果相加得到。这种线性递推的计算方式使得SSM处理长度为 $L$ 的序列时，计算复杂度仅为 $O(L)$，远低于自注意力机制的 $O(L^2)$。
+
+此外，上述递推关系还可以展开为全局卷积的形式。定义卷积核 $\overline{\mathbf{K}} \in \mathbb{R}^{L}$ 为：
+
+$$\overline{\mathbf{K}} = (\mathbf{C}\overline{\mathbf{B}}, \mathbf{C}\overline{\mathbf{A}}\overline{\mathbf{B}}, \mathbf{C}\overline{\mathbf{A}}^2\overline{\mathbf{B}}, \ldots, \mathbf{C}\overline{\mathbf{A}}^{L-1}\overline{\mathbf{B}})$$
+
+则输出序列可以通过输入序列与该卷积核的卷积运算直接计算：
+
+$$y = x * \overline{\mathbf{K}}$$
+
+这种卷积视角的计算方式可以利用快速傅里叶变换（FFT）在 $O(L \log L)$ 的时间复杂度内完成，适合在训练阶段进行并行计算。而递推视角则适合在推理阶段进行高效的自回归生成。SSM同时具备这两种计算模式是其相比Transformer的重要优势之一。
+
+### 2.3.3 从S4到Mamba的演进
+
+**S4（Structured State Space for Sequence Modeling）** 是Gu等人在2022年提出的结构化状态空间模型，是将SSM成功应用于深度学习序列建模的里程碑工作。S4的关键贡献在于解决了SSM在实际训练中面临的数值稳定性和计算效率问题。具体而言，S4对状态转移矩阵 $\mathbf{A}$ 采用了HiPPO（High-order Polynomial Projection Operators）初始化策略，通过特殊的矩阵结构使隐状态能够最优地压缩和记忆历史输入信息。同时，S4将 $\mathbf{A}$ 矩阵参数化为对角加低秩的结构，并利用生成函数将状态空间的计算转化为频域操作，大幅提升了计算效率。S4在Long Range Arena等长序列建模基准测试中首次取得了突破性成果，证明了SSM在捕获长距离依赖关系方面的巨大潜力。
+
+然而，S4存在一个根本性的局限：其状态转移矩阵 $\mathbf{A}$、输入矩阵 $\mathbf{B}$ 和输出矩阵 $\mathbf{C}$ 都是固定的、与输入无关的参数。这意味着无论输入内容如何变化，模型对所有输入使用完全相同的状态转移规则，无法根据输入内容自适应地决定哪些信息应当被保留、哪些应当被遗忘。这种线性时不变（Linear Time-Invariant, LTI）特性限制了模型对输入内容的选择性处理能力，在需要内容感知的任务中表现不够理想。
+
+**Mamba** 是Gu和Dao在2023年提出的选择性状态空间模型，实现了SSM从线性时不变系统到输入依赖系统的关键跨越。Mamba的核心创新——选择性机制（Selection Mechanism）——将原本固定的 $\mathbf{B}$、$\mathbf{C}$ 矩阵和步长参数 $\Delta$ 参数化为输入 $x$ 的函数：
+
+$$\mathbf{B}_t = s_B(x_t), \quad \mathbf{C}_t = s_C(x_t), \quad \Delta_t = \text{softplus}(s_\Delta(x_t))$$
+
+其中，$s_B$、$s_C$、$s_\Delta$ 为可学习的线性映射。通过这种输入依赖的参数化，模型在处理每个输入元素时都会根据其内容动态调整状态转移规则：对于重要的输入信息，模型可以增大 $\Delta$ 和 $\mathbf{B}$ 的值使其被充分写入隐状态；对于不相关的输入信息，则可以减小相应参数使其被过滤或遗忘。这种选择性机制赋予了Mamba类似于注意力机制的内容感知能力，但其计算方式仍然保持了线性递推的形式。
+
+然而，输入依赖的参数化也带来了计算上的挑战：由于 $\mathbf{B}$、$\mathbf{C}$、$\Delta$ 在每个时间步都不同，S4中基于全局卷积和FFT的高效并行计算方式不再适用。为此，Mamba设计了硬件感知的并行扫描算法，通过将递推计算重构为并行前缀和（parallel prefix sum）运算，充分利用GPU的并行计算能力。同时，Mamba采用了核融合（kernel fusion）和重计算（recomputation）等技术减少GPU显存的读写次数，在保持理论线性复杂度的同时实现了实际运行速度的大幅提升。
+
+[此处插入图：S4与Mamba的对比示意图。左侧为S4，标注A、B、C矩阵为固定参数（用实线框表示）；右侧为Mamba，标注B、C、Δ由输入x动态生成（用虚线箭头从输入指向参数表示），强调"选择性机制"。]
+
+### 2.3.4 二维选择性扫描机制（SS2D）
+
+Mamba最初为一维序列数据设计，将其应用于二维图像数据面临一个根本性挑战：图像具有天然的二维空间结构，像素之间存在水平、垂直和对角线等多方向的空间关系，而SSM本质上是一维序列模型，只能沿单一方向进行递推扫描。如果仅采用单一方向（如逐行扫描）将二维图像展开为一维序列，则同一行内相邻像素的依赖关系可以被直接建模，但不同行之间的垂直空间关系将需要经过较长的序列路径才能传递，导致垂直方向的依赖建模效率低下。
+
+为解决这一问题，VMamba中提出了二维选择性扫描模块（2D Selective Scan, SS2D）。SS2D的核心思想是沿多个方向分别将二维特征图展开为一维序列进行扫描，再将各方向的扫描结果进行融合。具体而言，SS2D采用四个扫描方向：
+
+- **方向1**：从左上到右下（逐行从左到右扫描）
+- **方向2**：从右下到左上（方向1的逆序）
+- **方向3**：从右上到左下（逐行从右到左扫描）
+- **方向4**：从左下到右上（方向3的逆序）
+
+对于每个扫描方向，二维特征图按照该方向的顺序被展开为一维序列，然后独立地通过选择性SSM（即Mamba的核心模块）进行处理，最后将四个方向的输出进行合并（通常采用逐元素求和或门控融合）以生成最终的输出特征图。
+
+[此处插入图：SS2D的四方向扫描示意图。展示一个二维特征图，用四种不同颜色的箭头分别标注四个扫描方向的路径。右侧展示每个方向展开为一维序列后通过SSM处理，最后合并输出。]
+
+这种交叉扫描策略确保了特征图上任意两个位置之间至少存在两条扫描路径使其信息可达（一条正向路径和一条反向路径），从而在保持线性计算复杂度 $O(H \times W)$ 的同时实现了对二维空间全局依赖关系的有效建模。与Transformer的二维自注意力（复杂度为 $O(H^2 \times W^2)$）相比，SS2D在处理高分辨率图像时具有显著的效率优势。
+
+SS2D模块的完整处理流程可以表述为：输入特征 $X \in \mathbb{R}^{B \times H \times W \times C}$ 首先经过线性投影扩展通道维度，然后分为两个分支——一个分支经过深度可分离卷积和SiLU激活函数后进行四方向扫描，另一个分支经过SiLU激活函数作为门控信号。四方向扫描的输出经合并后与门控信号逐元素相乘，最后通过线性投影恢复至原始通道维度，输出特征 $Y \in \mathbb{R}^{B \times H \times W \times C}$。
+
+## 2.4 注意力机制
+
+注意力机制是深度学习中一种重要的特征增强技术，其核心思想源于人类视觉系统的选择性注意机制：在面对复杂的视觉场景时，人类倾向于将注意力集中在最相关的区域和信息上，而忽略不重要的部分。在深度学习中，注意力机制通过动态计算特征的重要性权重并据此对特征进行重标定或加权聚合，使模型能够自适应地聚焦于最有价值的信息。本文涉及通道注意力、空间注意力和交叉注意力三种注意力机制，下面分别进行介绍。
+
+### 2.4.1 通道注意力机制
+
+在卷积神经网络中，每个卷积层输出的特征图包含多个通道，不同通道对应不同的特征响应模式（如边缘、纹理、颜色等）。然而，标准卷积操作对所有通道赋予相同的权重，未能区分不同通道特征的重要性差异。通道注意力机制旨在自适应地学习各通道的重要性权重，增强信息量丰富的通道、抑制冗余的通道，从而提升特征的判别性。
+
+**SE（Squeeze-and-Excitation）注意力** 是通道注意力的经典方法。SE模块通过两个步骤实现通道重标定。第一步是"压缩"（Squeeze）操作：对输入特征图 $X \in \mathbb{R}^{H \times W \times C}$ 沿空间维度进行全局平均池化，将每个通道的二维特征图压缩为一个标量，得到通道描述符 $z \in \mathbb{R}^{C}$：
+
+$$z_c = \frac{1}{H \times W}\sum_{i=1}^{H}\sum_{j=1}^{W} X_{i,j,c}$$
+
+第二步是"激励"（Excitation）操作：通过两层全连接网络学习通道间的非线性依赖关系，生成通道权重向量 $s \in \mathbb{R}^{C}$：
+
+$$s = \sigma(\mathbf{W}_2 \cdot \delta(\mathbf{W}_1 \cdot z))$$
+
+其中，$\mathbf{W}_1 \in \mathbb{R}^{\frac{C}{r} \times C}$ 和 $\mathbf{W}_2 \in \mathbb{R}^{C \times \frac{C}{r}}$ 为全连接层的权重矩阵，$r$ 为压缩比（reduction ratio），$\delta$ 为ReLU激活函数，$\sigma$ 为Sigmoid激活函数。最终，通道权重 $s$ 与输入特征逐通道相乘，实现通道重标定：
+
+$$\hat{X}_c = s_c \cdot X_c$$
+
+SE模块通过显式建模通道间的依赖关系，有效增强了网络的特征表达能力。然而，其全连接层引入了额外的参数量和计算开销，且压缩比 $r$ 的选择需要人为设定。
+
+**ECA（Efficient Channel Attention）注意力** 是对SE模块的轻量化改进，本文在DVSS模块的局部路径中采用了ECA进行通道重标定。ECA的核心改进在于用一维卷积替代SE模块中的两层全连接网络。具体而言，ECA同样首先对输入特征进行全局平均池化得到通道描述符 $z$，然后使用一个核大小为 $k$ 的一维卷积直接在相邻通道之间建模局部依赖关系：
+
+$$s = \sigma(\text{Conv1D}_k(z))$$
+
+其中，$k$ 为一维卷积核的大小，可以根据通道数 $C$ 自适应地确定：$k = \psi(C) = |\frac{\log_2 C}{\gamma} + \frac{b}{\gamma}|_{odd}$，$\gamma$ 和 $b$ 为超参数，$|\cdot|_{odd}$ 表示取最近的奇数。
+
+[此处插入图：SE模块与ECA模块的对比示意图。左侧为SE模块（全局平均池化→全连接层→ReLU→全连接层→Sigmoid→通道加权），右侧为ECA模块（全局平均池化→1D卷积→Sigmoid→通道加权），标注ECA省去了全连接层，用轻量的1D卷积替代。]
+
+与SE模块相比，ECA的优势在于：一是避免了全连接层带来的通道维度压缩，所有通道的信息得以完整保留；二是一维卷积的参数量仅为 $k$（通常为3或5），远小于SE模块中两层全连接层的参数量 $2C^2/r$，实现了更高效的通道注意力计算。
+
+### 2.4.2 空间注意力机制
+
+与通道注意力关注"哪些特征通道更重要"不同，空间注意力关注的是"哪些空间位置更重要"。空间注意力机制通过生成一个与输入特征图具有相同空间尺寸的权重图，对不同空间位置的特征赋予不同的重要性权重，使模型能够聚焦于目标区域而抑制背景干扰。
+
+一种常用的空间注意力实现方式是基于通道维度的统计量来推断空间位置的重要性。具体而言，给定输入特征图 $X \in \mathbb{R}^{H \times W \times C}$，首先沿通道维度分别进行平均池化和最大池化，得到两个空间描述符：
+
+$$X_{avg} = \frac{1}{C}\sum_{c=1}^{C} X_{:,:,c} \in \mathbb{R}^{H \times W \times 1}$$
+
+$$X_{max} = \max_{c} X_{:,:,c} \in \mathbb{R}^{H \times W \times 1}$$
+
+平均池化反映了每个空间位置上所有通道的平均响应强度，最大池化则捕获了每个空间位置上最显著的特征响应。将这两个描述符沿通道维度拼接后，通过一个卷积层和Sigmoid激活函数生成空间注意力图：
+
+$$M_s = \sigma(f^{k \times k}([X_{avg}; X_{max}]))$$
+
+其中，$f^{k \times k}$ 为核大小为 $k \times k$ 的卷积操作（$k$ 通常取7），$\sigma$ 为Sigmoid激活函数，$M_s \in \mathbb{R}^{H \times W \times 1}$ 为空间注意力图。最终，空间注意力图与输入特征逐元素相乘，实现空间维度的特征增强：
+
+$$\hat{X} = M_s \odot X$$
+
+其中，$\odot$ 表示逐元素乘法，通过广播机制在通道维度上扩展。本文在MSK模块中采用了上述空间注意力机制进行多尺度融合特征的空间增强。
+
+### 2.4.3 自注意力与交叉注意力机制
+
+**自注意力机制（Self-Attention）** 是Transformer架构的核心组件，通过计算序列中每个元素与所有其他元素之间的相关性来建模全局依赖关系。给定输入特征 $X \in \mathbb{R}^{N \times d}$（$N$ 为序列长度，$d$ 为特征维度），自注意力机制首先通过三个独立的线性映射将输入投影为查询（Query）、键（Key）和值（Value）三组向量：
+
+$$Q = XW_Q, \quad K = XW_K, \quad V = XW_V$$
+
+其中，$W_Q, W_K \in \mathbb{R}^{d \times d_k}$，$W_V \in \mathbb{R}^{d \times d_v}$ 为可学习的投影矩阵。然后，通过缩放点积计算注意力权重，并对值向量进行加权聚合：
+
+$$\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V$$
+
+其中，$QK^T \in \mathbb{R}^{N \times N}$ 为注意力分数矩阵，其第 $(i, j)$ 个元素衡量了第 $i$ 个查询与第 $j$ 个键之间的相关性。除以 $\sqrt{d_k}$ 是为了防止点积值过大导致Softmax函数的梯度消失。Softmax函数将注意力分数归一化为概率分布，使得每个查询位置的注意力权重之和为1。
+
+自注意力机制的关键优势在于每个位置都能直接与序列中的所有其他位置进行信息交互，无需经过中间层的逐步传递，从而能够高效地捕获任意距离的依赖关系。然而，其计算复杂度为 $O(N^2)$，当序列长度较大时计算开销显著增加。
+
+在实际应用中，通常采用**多头注意力（Multi-Head Attention）** 机制，将输入特征沿通道维度划分为多个子空间（头），在每个子空间中独立进行注意力计算，最后将各头的输出拼接后通过线性投影得到最终结果：
+
+$$\text{MultiHead}(Q, K, V) = \text{Concat}(\text{head}_1, \ldots, \text{head}_h)W_O$$
+
+$$\text{head}_i = \text{Attention}(QW_Q^i, KW_K^i, VW_V^i)$$
+
+多头机制使模型能够从多个不同的表示子空间中同时学习不同类型的依赖关系。
+
+**交叉注意力机制（Cross-Attention）** 是自注意力机制的扩展，区别在于查询和键/值来自不同的输入源。在自注意力中，$Q$、$K$、$V$ 均由同一输入 $X$ 投影生成，建模的是单一序列内部的依赖关系。而在交叉注意力中，查询来自一个输入源 $X_1$，键和值来自另一个输入源 $X_2$：
+
+$$Q = X_1 W_Q, \quad K = X_2 W_K, \quad V = X_2 W_V$$
+
+$$\text{CrossAttention}(X_1, X_2) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V$$
+
+交叉注意力的物理含义是：以 $X_1$ 的特征作为查询条件，从 $X_2$ 的特征中搜索最相关的信息并进行加权聚合。这种机制非常适合多模态特征融合——以一种模态的特征作为查询，从另一种模态中选择性地提取互补信息。本文在多模态融合网络的CrossModalMSK模块中采用了交叉注意力机制来实现光学与SAR特征之间的跨模态信息交互。
+
+## 2.5 多模态遥感数据特性
+
+本文的第二项工作涉及光学图像与SAR图像的多模态融合分割。两种模态的遥感数据在成像机理上存在本质差异，理解其各自的数据特性和互补关系是设计有效融合策略的基础。
+
+### 2.5.1 光学遥感图像
+
+光学遥感图像通过被动接收地表反射或辐射的电磁波进行成像，其工作波段通常涵盖可见光（红、绿、蓝）和近红外等波段。光学图像的核心优势在于其丰富的光谱信息和直观的视觉表达能力：不同地物类型（如植被、水体、建筑物、裸土等）在不同光谱波段上具有显著不同的反射率特征，通过多波段的光谱组合可以有效区分地物类型。此外，高分辨率光学图像能够提供清晰的纹理和边缘信息，有助于精确地描绘地物边界。
+
+然而，光学遥感图像也存在明显的局限性。首先，光学成像依赖于太阳光照射，因此只能在白天进行数据采集，无法实现全天时观测。其次，光学波段的电磁波无法穿透云层、雾霾等大气遮挡，在恶劣天气条件下图像质量严重退化甚至完全无法成像。在热带和亚热带地区，常年云层覆盖使得获取高质量光学图像的窗口期十分有限。此外，光学图像对光照条件变化较为敏感，阴影、高光等现象可能导致同一地物在不同时相的图像中呈现截然不同的光谱特征，给分割模型的稳定性带来挑战。
+
+### 2.5.2 SAR遥感图像
+
+合成孔径雷达（SAR）是一种主动微波遥感传感器，通过向地表发射微波脉冲并接收回波信号进行成像。SAR的工作波段为微波波段（通常为L波段、C波段或X波段），波长远大于光学波段。SAR的核心优势在于其全天候、全天时的成像能力：微波能够穿透云层、雨雾等大气遮挡，不依赖太阳光照，因此可以在任何天气条件和昼夜时间下进行地表观测，这在应急监测和灾害评估等需要快速响应的场景中具有不可替代的价值。
+
+SAR图像反映的是地表对微波的后向散射特性，其灰度值与地物的介电常数、表面粗糙度、几何结构和入射角等因素密切相关。这使得SAR图像在表征地物的几何结构和物理特性方面具有独特优势。然而，SAR图像也面临若干挑战。首先，相干斑噪声（speckle noise）是SAR图像固有的特性，由微波的相干干涉效应产生，表现为图像中的颗粒状噪声，严重影响了图像的视觉质量和后续处理的准确性。其次，SAR图像缺乏光学图像中的光谱信息，仅包含单通道（或多极化通道）的散射强度信息，对地物类型的区分能力相对有限。此外，SAR图像中存在特有的几何畸变现象，如透视缩短、叠掩和阴影等，进一步增加了地物识别的难度。
+
+### 2.5.3 多模态互补性
+
+从上述分析可以看出，光学图像和SAR图像在信息维度上具有天然的互补性。光学图像擅长提供光谱属性和视觉纹理信息，适合区分具有不同颜色和光谱特征的地物类型；SAR图像擅长反映地表的几何结构和散射特性，且不受天气和光照条件的限制。通过融合两种模态的信息，可以在以下方面实现优势互补：在云层覆盖区域，SAR数据可以弥补光学数据的缺失；在地物类型区分方面，光学数据的光谱信息可以增强SAR数据有限的类别判别能力；在建筑物和道路等人工地物的识别方面，SAR数据的几何结构信息可以辅助光学数据实现更准确的边界提取。
+
+然而，两种模态在数据特性上的巨大差异也给融合带来了显著挑战：光学图像具有三或四个通道（RGB或RGBNIR），值域为正整数；SAR图像通常为单通道，值域可能包含负值（以分贝为单位表示时）。两者在统计分布、噪声特性和语义表达方式上的异质性，要求融合算法能够有效地弥合模态鸿沟，在保持各模态特异性的同时实现深层次的特征互补。
+
+## 2.6 数据集与评价指标
+
+### 2.6.1 ISPRS Potsdam数据集
+
+ISPRS Potsdam数据集由国际摄影测量与遥感学会（ISPRS）提供，是遥感图像语义分割领域广泛使用的基准数据集之一。该数据集覆盖德国波茨坦市的城市区域，包含38幅6000×6000像素的高分辨率航空正射影像，地面采样距离（Ground Sample Distance, GSD）为5厘米。每幅图像包含近红外（NIR）、红色（R）和绿色（G）三个通道，同时提供对应的数字表面模型（DSM）数据。数据集标注了6个语义类别：不透水面（Impervious Surface）、建筑物（Building）、低矮植被（Low Vegetation）、树木（Tree）、车辆（Car）和背景/杂波（Clutter/Background）。
+
+在本文实验中，按照常用的实验设置，选取24幅图像用于训练（排除标注存在错误的第7幅第10号图像），14幅图像用于测试。训练和测试时，将原始图像裁剪为512×512像素的小块进行处理。
+
+[此处插入图：ISPRS Potsdam数据集样例。展示2-3组样例，每组包含NIRRG正射影像和对应的语义标注图，标注图中不同颜色代表不同类别。附图例说明各颜色对应的类别。]
+
+### 2.6.2 ISPRS Vaihingen数据集
+
+ISPRS Vaihingen数据集同样由ISPRS提供，覆盖德国Vaihingen城市区域。该数据集包含33幅高分辨率航空正射影像，图像大小不一（平均约2494×2064像素），GSD为9厘米。每幅图像包含近红外（NIR）、红色（R）和绿色（G）三个通道，同时提供对应的DSM数据。数据集的语义类别与Potsdam数据集相同，包含不透水面、建筑物、低矮植被、树木、车辆和背景/杂波共6个类别。
+
+与Potsdam数据集相比，Vaihingen数据集的图像分辨率稍低、图像数量较少，但地物种类更加紧凑，建筑物密度较高，为模型在不同场景条件下的泛化能力评估提供了有价值的补充。在本文实验中，选取16幅图像用于训练，17幅图像用于测试。
+
+[此处插入图：ISPRS Vaihingen数据集样例。格式同Potsdam，展示2-3组NIRRG影像及对应标注图。]
+
+### 2.6.3 LoveDA数据集
+
+LoveDA数据集是一个面向领域自适应语义分割研究的大规模遥感图像数据集，覆盖中国南京、常州和武汉三个城市的城市和乡村区域。该数据集包含5987幅1024×1024像素的高分辨率遥感图像，GSD为0.3米，每幅图像包含红色（R）、绿色（G）和蓝色（B）三个通道。数据集标注了7个语义类别：背景（Background）、建筑物（Building）、道路（Road）、水体（Water）、裸地（Barren）、森林（Forest）和农田（Agriculture）。
+
+LoveDA数据集的显著特点在于其同时包含城市和乡村两种差异显著的场景类型，城市场景中建筑物密集、道路网络复杂，乡村场景中农田和森林面积广阔、地物边界模糊，这种场景多样性对模型的泛化能力提出了较高要求。在本文实验中，按照官方划分，使用训练集（2522幅）进行训练，验证集（1669幅）进行测试。
+
+[此处插入图：LoveDA数据集样例。展示城市和乡村各1-2组样例，包含RGB影像和对应标注图。]
+
+### 2.6.4 WHU-OPT-SAR数据集
+
+WHU-OPT-SAR数据集是一个专为光学与SAR图像融合语义分割任务设计的大规模多模态遥感数据集，由武汉大学构建并公开。该数据集覆盖中国湖北省约50000平方公里的区域（30°N-33°N，108°E-117°E），涵盖了山地、林地、丘陵、平原等多种复杂地形。
+
+数据集中的光学图像由高分一号（GF-1）卫星采集，包含红色（R）、绿色（G）、蓝色（B）和近红外（NIR）四个通道，地面分辨率为2米。SAR图像由高分三号（GF-3）卫星采集，为单通道极化图像，地面分辨率为5米。为实现两种模态图像之间的逐像素对应关系，光学图像通过双线性插值重采样至5米分辨率，并在WGS-84坐标系下与SAR图像进行几何配准。数据集共包含100幅5556×3704像素的光学-SAR图像对，并提供像素级语义标注，包含7个类别：背景（Background）、农田（Farmland）、城市（City）、村庄（Village）、水体（Water）、森林（Forest）和道路（Road）。
+
+WHU-OPT-SAR数据集是目前最大的融合高分辨率光学图像和SAR图像的公开数据集，其丰富的地物类型和大范围的地理覆盖为多模态融合分割方法的评估提供了全面的实验基础。在本文实验中，按照常用的划分方式，将数据集裁剪为固定大小的图像块，并按照训练集、验证集和测试集进行划分。
+
+[此处插入图：WHU-OPT-SAR数据集样例。展示2-3组样例，每组包含光学图像（RGB或RGBNIR）、对应的SAR图像和语义标注图，直观展示两种模态的差异和互补性。]
+
+### 2.6.5 评价指标
+
+为全面评估语义分割模型的性能，本文采用以下常用的评价指标：
+
+**（1）混淆矩阵**
+
+混淆矩阵是评估分类和分割模型性能的基础工具。对于包含 $K$ 个类别的语义分割任务，混淆矩阵 $\mathbf{M} \in \mathbb{R}^{K \times K}$ 中的元素 $M_{ij}$ 表示真实类别为 $i$ 且被预测为类别 $j$ 的像素数量。对角线元素 $M_{ii}$ 代表被正确分割的像素数量，非对角线元素则反映了不同类别之间的误判情况。混淆矩阵为后续各评价指标的计算提供了基础数据。
+
+**（2）总体精度（Overall Accuracy, OA）**
+
+总体精度衡量的是所有像素中被正确分类的比例，是最直观的整体性能指标：
+
+$$OA = \frac{\sum_{i=0}^{K-1} M_{ii}}{\sum_{i=0}^{K-1}\sum_{j=0}^{K-1} M_{ij}}$$
+
+OA能够反映模型在整体层面上的分割准确性，但在类别严重不平衡时，OA可能被多数类主导而无法真实反映少数类的分割效果。
+
+**（3）交并比（Intersection over Union, IoU）**
+
+交并比是语义分割中最重要的类别级评价指标，衡量的是模型对某一类别的预测区域与真实区域之间的重叠程度。类别 $i$ 的IoU定义为：
+
+$$IoU_i = \frac{M_{ii}}{\sum_{j=0}^{K-1} M_{ij} + \sum_{j=0}^{K-1} M_{ji} - M_{ii}}$$
+
+其中，分子 $M_{ii}$ 为预测正确的像素数（交集），分母为预测为类别 $i$ 的像素数与真实为类别 $i$ 的像素数之和减去正确预测数（并集）。IoU的取值范围为 $[0, 1]$，值越大表示该类别的分割效果越好。
+
+**（4）平均交并比（Mean Intersection over Union, mIoU）**
+
+平均交并比是所有类别IoU的算术平均值，是语义分割任务中最核心的整体评价指标：
+
+$$mIoU = \frac{1}{K}\sum_{i=0}^{K-1} IoU_i$$
+
+mIoU对每个类别赋予相同的权重，不受类别像素数量不平衡的影响，能够公平地反映模型在所有类别上的综合分割性能。
+
+**（5）F1分数（F1-Score）**
+
+F1分数是精确率（Precision）和召回率（Recall）的调和平均值，综合考虑了模型的分类准确性和检测完整性。对于类别 $i$，精确率和召回率分别定义为：
+
+$$Precision_i = \frac{M_{ii}}{\sum_{j=0}^{K-1} M_{ji}}, \quad Recall_i = \frac{M_{ii}}{\sum_{j=0}^{K-1} M_{ij}}$$
+
+$$F1_i = \frac{2 \times Precision_i \times Recall_i}{Precision_i + Recall_i}$$
+
+平均F1分数（mF1）为所有类别F1分数的算术平均值：
+
+$$mF1 = \frac{1}{K}\sum_{i=0}^{K-1} F1_i$$
+
+**（6）计算效率指标**
+
+除分割精度指标外，本文还采用以下指标评估模型的计算效率：
+
+- **参数量（Parameters）**：模型中可学习参数的总数，以百万（M）为单位，反映模型的存储需求。
+- **浮点运算量（FLOPs）**：模型进行一次前向推理所需的浮点运算次数，以十亿次（G）为单位，反映模型的计算复杂度。
+- **推理速度（FPS）**：模型每秒能够处理的图像帧数，以帧/秒（fps）为单位，反映模型的实时处理能力。
+
+## 2.7 本章小结
+
+本章系统介绍了本文研究工作所涉及的相关理论与技术基础，为后续章节的方法设计与实验分析奠定了理论支撑。首先，阐述了语义分割任务的基本概念、编码器-解码器架构的设计原理以及交叉熵损失和Dice损失的数学定义和各自特点。其次，详细介绍了状态空间模型的理论基础，从连续SSM的数学定义出发，阐述了其离散化过程和两种计算模式（递推和卷积），进而分析了从S4的固定参数设计到Mamba的选择性机制的技术演进，并介绍了SS2D将一维SSM扩展到二维图像处理的四方向交叉扫描策略。然后，介绍了通道注意力（SE和ECA）、空间注意力以及自注意力和交叉注意力等本文涉及的关键注意力机制，分析了各自的数学原理和适用场景。接着，分析了光学遥感图像和SAR遥感图像各自的数据特性、优势与局限，以及两者之间的互补关系和融合挑战。最后，介绍了本文实验所采用的ISPRS Potsdam、ISPRS Vaihingen、LoveDA和WHU-OPT-SAR四个公开数据集的基本信息和实验划分，以及mIoU、OA、mF1等评价指标的数学定义和物理含义。
+
+[47] Feng J, Wang L, Yu H, et al. CMGFNet: A cross-modal gated fusion network for building extraction from very high-resolution remote sensing images and GIS data[J]. ISPRS Journal of Photogrammetry and Remote Sensing, 2022, 188: 61-76.
+
+[48] Zhang J, Liu H, Yang K, et al. CMX: Cross-modal fusion for RGB-X semantic segmentation with transformers[J]. IEEE Transactions on Intelligent Transportation Systems, 2023, 24(12): 14679-14694.
