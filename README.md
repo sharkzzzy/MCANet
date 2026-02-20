@@ -16,8 +16,7 @@
 
 然而，高分辨率遥感图像的语义分割仍然面临诸多挑战。首先，遥感图像中地物类型多样、尺度差异显著，同一场景中既包含大面积的农田、水体等宏观地物，也存在车辆、小型建筑等细小目标，要求模型同时具备全局上下文建模能力和局部细节捕获能力。其次，遥感图像背景复杂，地物边界模糊，不同类别之间存在"同物异谱"和"异物同谱"现象，进一步加大了精确分割的难度。此外，高分辨率图像的数据量庞大，对算法的计算效率提出了更高的要求，如何在精度与效率之间取得平衡是一个重要的研究课题。
 
-在模型架构方面，基于Transformer[12]的方法通过自注意力机制有效捕获了长距离依赖关系，在语义分割任务中展现出优越的性能。然而，自注意力机制的计算复杂度与输入序列长度呈二次方关系，当应用于高分辨率遥感图像时，巨大的计算开销严重制约了其实际部署。近年来，状态空间模型（State Space Model, SSM）[13]凭借其线性计算复杂度和全局序列建模能力，为解决这一矛盾提供了新的技术路径。以Mamba[14]为代表的选择性状态空间模型通过输入依赖的选择机制，在保持线性复杂度的同时实现了对长序列的高效建模，已在自然语言处理和计算机视觉等领域展现出巨大潜力。在遥感图像分割中，基于Mamba的方法[15]已初步验证了其在处理大规模场景时兼顾精度与效率的可行性。然而，现有方法仍存在全局上下文建模与局部细节增强在单一处理路径中相互耦合、注意力机制在网络不同阶段冗余堆叠等问题，限制了模型性能的进一步提升。
-
+为应对上述挑战，研究者们不断探索更强大的模型架构。基于Transformer[12]的方法通过自注意力机制有效捕获了长距离依赖关系，在语义分割任务中展现出优越的性能。然而，自注意力机制的计算复杂度与输入序列长度呈二次方关系，当应用于高分辨率遥感图像时，巨大的计算开销严重制约了其实际部署。近年来，状态空间模型（State Space Model, SSM）[13]凭借其线性计算复杂度和全局序列建模能力，为解决这一矛盾提供了新的技术路径。以Mamba[14]为代表的选择性状态空间模型通过输入依赖的选择机制，在保持线性复杂度的同时实现了对长序列的高效建模，已在自然语言处理和计算机视觉等领域展现出巨大潜力。在遥感图像分割中，基于Mamba的方法[15]已初步验证了其在处理大规模场景时兼顾精度与效率的可行性。然而，现有方法仍存在全局上下文建模与局部细节增强在单一处理路径中相互耦合、注意力机制在网络不同阶段冗余堆叠等问题，限制了模型性能的进一步提升。
 此外，在实际遥感应用中，单一模态的数据往往难以全面表征复杂地物的特征信息。光学图像虽然具有丰富的光谱和纹理信息，能够直观反映地表覆盖物的属性和类型，但易受云层遮挡、光照变化等环境因素的影响，在恶劣天气条件下成像质量显著下降。合成孔径雷达（Synthetic Aperture Radar, SAR）作为一种主动微波遥感技术，具备全天候、全天时的成像能力，能够穿透云层和部分地表覆盖物，提供稳定可靠的地表观测信息[16]。然而，SAR图像受相干斑噪声干扰严重，且缺乏光谱信息，对地物类型的区分能力有限。通过融合光学图像与SAR图像，可以充分发挥两种模态的互补优势，弥补单一数据源的不足，从而全面、准确地获取地表特征信息。然而，光学图像与SAR图像在成像机理、数据特性和信息表达形式上存在本质差异，如何有效弥合这种模态鸿沟、实现跨模态特征的充分融合，仍然是一个具有挑战性的研究问题。
 
 综上所述，针对遥感图像语义分割中存在的全局与局部特征建模耦合、计算效率受限以及多模态特征融合困难等问题，开展基于状态空间模型的高效分割方法研究，并探索光学与SAR图像的跨模态融合策略，对于推动遥感图像智能解译技术的发展具有重要的理论意义和应用价值。
@@ -34,7 +33,7 @@
 
 在模型轻量化方面，Badrinarayanan等人[20]提出了SegNet，通过利用编码阶段的池化索引进行非参数化上采样，显著减少了模型参数量。Yu等人[21]提出了双边分割网络（BiSeNet），采用双分支设计分别提取空间细节特征和语义上下文特征，在分割精度与推理速度之间取得了良好的平衡。Howard等人[22]提出的MobileNetV3通过引入深度可分离卷积和反转残差结构，大幅降低了骨干网络的计算开销，为轻量化语义分割模型提供了高效的特征提取基础。
 
-在遥感图像分割领域，基于CNN的方法同样取得了丰富成果。Wang等人[23]提出了UNetFormer，在U-Net的解码器中引入了高效的全局-局部注意力机制，有效提升了遥感图像中多尺度地物的分割精度。Li等人[24]提出的ABCNet通过注意力增强的双边网络结构，实现了对遥感图像中复杂场景的精细分割。
+在遥感图像分割领域，基于CNN的方法同样取得了丰富成果。Li等人[24]提出的ABCNet通过注意力增强的双边网络结构，实现了对遥感图像中复杂场景的精细分割。Wang等人[23]提出了UNetFormer，以ResNet作为编码器骨干，并在解码器中融合了Transformer模块的全局-局部注意力机制，在保持CNN编码器效率的同时增强了全局上下文建模能力，有效提升了遥感图像中多尺度地物的分割精度，体现了CNN与Transformer融合的发展趋势。
 
 尽管基于CNN的方法在遥感图像分割中取得了显著成效，但卷积操作固有的局部感受野限制了其对长距离依赖关系的建模能力。虽然可以通过堆叠多层卷积或使用空洞卷积来扩大感受野，但这种扩展方式效率较低，且难以有效捕获图像中远距离像素之间的语义关联，在处理大面积均质区域或需要全局上下文理解的场景时表现受限。
 
@@ -43,7 +42,7 @@ Transformer[12]最初为自然语言处理任务设计，其核心的自注意�
 
 在语义分割领域，Zheng等人[26]提出了SETR（Segmentation Transformer），将ViT作为编码器，首次验证了纯Transformer架构在语义分割任务中的可行性。Xie等人[27]提出了SegFormer，设计了层次化的Transformer编码器和轻量级的全多层感知机（All-MLP）解码器，在多个分割基准上取得了精度与效率的良好平衡。Liu等人[28]提出了Swin Transformer，通过滑动窗口机制将自注意力的计算限制在局部窗口内，并通过窗口间的移位实现跨窗口信息交互，将计算复杂度从二次方降低至线性，极大地提升了Transformer处理高分辨率图像的效率。
 
-在遥感图像分割中，基于Transformer的方法也得到了广泛应用。Wang等人[29]提出了BANet，利用Transformer捕获遥感图像中的全局上下文信息，有效提升了对复杂场景的理解能力。Strudel等人[30]提出了Segmenter，采用纯Transformer架构进行语义分割，通过全局注意力机制增强了对大范围地物的识别能力。
+在遥感图像分割中，基于Transformer的方法也得到了广泛应用。Wang等人[29]提出了BANet，采用Transformer作为骨干网络提取多层级特征，并通过双边感知模块融合不同层级的语义信息，有效提升了对遥感图像中复杂场景的理解能力。Strudel等人[30]提出了Segmenter，采用纯Transformer架构进行语义分割，通过全局注意力机制增强了对大范围地物的识别能力。
 
 然而，尽管Transformer在建模长距离依赖方面具有显著优势，但自注意力机制的计算复杂度与输入分辨率呈二次方关系。即使采用Swin Transformer等局部窗口策略进行优化，当应用于高分辨率遥感图像时，其计算开销仍然较大，在资源受限的实际应用场景中面临部署困难。此外，Transformer对局部细节的建模能力相对较弱，在处理遥感图像中精细的地物边界和小目标时仍存在不足。
 
@@ -54,9 +53,8 @@ Gu等人[31]提出了结构化状态空间序列模型（S4），通过对SSM进
 
 Mamba在自然语言处理任务中展现出了与Transformer相当甚至超越的性能后，迅速被引入计算机视觉领域。Liu等人[32]提出了VMamba，设计了二维选择性扫描模块（SS2D），通过四个方向的交叉扫描路径将二维图像特征展开为一维序列进行处理，有效地将Mamba的序列建模能力扩展到二维视觉任务中。Zhu等人[33]提出了Vision Mamba（Vim），采用双向状态空间模型处理图像序列，在图像分类任务中实现了优异的性能。
 
-在语义分割领域，基于Mamba的方法已展现出巨大潜力。Xing等人[34]提出了SegMamba，将Mamba引入三维医学图像分割任务，通过长距离序列建模有效处理了体数据中的空间依赖关系。Ruan和Xiang[35]提出了VM-UNet，构建了基于Vision Mamba的纯SSM架构，在医学图像分割中验证了SSM作为编码器-解码器骨干的有效性。
+在遥感图像分割领域，基于Mamba的方法同样受到了广泛关注。Chen等人[36]提出了RS3Mamba，将Mamba与CNN相结合用于遥感图像语义分割，通过辅助的选择性状态空间模块增强了多尺度特征的提取能力。Shi等人[15]提出了CM-UNet，将基于CNN的ResNet编码器与基于Mamba的解码器相结合，在解码器中设计了融合通道注意力与空间注意力的CSMamba模块以增强SS2D模块的特征选择能力，并提出了多尺度注意力聚合模块用于跳跃连接处的多尺度特征融合，在多个遥感分割数据集上取得了优异的性能。
 
-在遥感图像分割领域，基于Mamba的方法同样受到了广泛关注。Chen等人[36]提出了RS3Mamba，将Mamba与CNN相结合用于遥感图像语义分割，通过辅助的选择性状态空间模块增强了多尺度特征的提取能力。Shi等人[15]提出了CM-UNet，将基于CNN的编码器与基于Mamba的解码器相结合，在多个遥感分割数据集上取得了优异的性能。
 
 尽管现有基于Mamba的遥感分割方法已展现出良好的精度与效率平衡，但仍存在一些值得关注的问题。一方面，现有方法的解码器通常采用单一路径的序列化设计，全局上下文建模与局部细节增强在同一处理流程中耦合执行，两种本质不同的子任务共享参数空间，可能相互制约，限制了各自的优化潜力。另一方面，部分方法在网络的多个阶段重复施加功能相似的注意力操作，导致计算资源的冗余消耗，模型复杂度和推理开销随之增大，影响了实际部署效率。如何在保持全局建模能力的同时高效增强局部细节，以及如何合理配置注意力机制以避免冗余，是当前基于SSM的遥感分割方法需要进一步解决的问题。
 
@@ -65,7 +63,7 @@ Mamba在自然语言处理任务中展现出了与Transformer相当甚至超越�
 
 在光学与高程数据的融合方面，Hazirbas等人[39]提出了FuseNet，采用双分支编码器分别处理RGB图像和深度图像，并将深度分支的多层特征逐级融合至RGB分支的编码器中。然而，这种单向融合方式未能充分利用双向的模态交互信息。Audebert等人[40]采用两个独立的CNN网络分别处理光学图像和数字表面模型（DSM）图像，并通过逐元素相加的方式进行模态特征融合，方法简单但融合深度有限。Ma等人[41]提出了AMM-FuseNet，采用通道注意力机制和密集连接的空间金字塔池化增强多模态特征的表征能力，在一定程度上缓解了简单融合策略的局限性。
 
-在光学与SAR图像的融合分割方面，由于两种模态在成像机理上存在本质差异——光学图像反映地物的光谱反射特性，而SAR图像通过后向散射系数表征地表结构特征——跨模态特征融合面临更大的挑战。Li等人[42]在WHU-OPT-SAR数据集[43]上提出了MCANet，通过多模态交叉注意力机制提取光学图像和SAR图像中的互补特征，并设计低高层特征融合模块优化分割结果，验证了多模态融合对分割性能的显著提升。Feng等人[44]提出了CMGFNet，通过跨模态门控融合机制自适应地调节不同模态特征的贡献权重，有效应对了模态间语义不一致的问题。Zhang等人[45]提出了CMX，设计了交叉模态特征校正模块，通过双向特征交互实现不同模态之间的有效融合，其通用的跨模态融合范式对光学与SAR图像的融合也具有重要的借鉴意义。
+在光学与SAR图像的融合分割方面，由于两种模态在成像机理上存在本质差异——光学图像反映地物的光谱反射特性，而SAR图像通过后向散射系数表征地表结构特征——跨模态特征融合面临更大的挑战。Li等人[42]提出了MCANet并构建了WHU-OPT-SAR数据集，通过多模态交叉注意力机制提取光学图像和SAR图像中的互补特征，并设计低高层特征融合模块优化分割结果，验证了多模态融合对分割性能的显著提升。Feng等人[43]提出了CMGFNet，通过跨模态门控融合机制自适应地调节不同模态特征的贡献权重，有效应对了模态间语义不一致的问题。Zhang等人[44]提出了CMX，设计了交叉模态特征校正模块，通过双向特征交互实现不同模态之间的有效融合，其通用的跨模态融合范式对光学与SAR图像的融合也具有重要的借鉴意义。
 
 尽管上述多模态融合方法在一定程度上提升了分割性能，但仍存在一些需要解决的问题。首先，多数方法在融合过程中采用简单的特征拼接或逐元素相加策略，难以充分建模不同模态特征之间的关联性和互补性。其次，光学与SAR图像在分辨率、噪声水平和语义表达上的差异，使得不同尺度特征的跨模态对齐和融合仍然具有挑战性。此外，如何在多模态融合框架中高效地整合先进的序列建模技术，以同时实现全局上下文的跨模态交互和局部细节的精细增强，是一个值得深入探索的研究方向。
 
@@ -167,18 +165,14 @@ Mamba在自然语言处理任务中展现出了与Transformer相当甚至超越�
 [37] Gao L, Hong D, Yao J, et al. Spectral superresolution of multispectral imagery with joint sparse and low-rank learning[J]. IEEE Transactions on Geoscience and Remote Sensing, 2021, 59(3): 2269-2280.
 
 [38] Zhang J. Multi-source remote sensing data fusion: Status and trends[J]. International Journal of Image and Data Fusion, 2010, 1(1): 5-24.
-
 [39] Hazirbas C, Ma L, Domokos C, et al. FuseNet: Incorporating depth into semantic segmentation via fusion-based CNN architecture[C]//Proceedings of the Asian Conference on Computer Vision (ACCV). Springer, 2016: 213-228.
 
 [40] Audebert N, Le Saux B, Lefèvre S. Beyond RGB: Very high resolution urban remote sensing with multimodal deep networks[J]. ISPRS Journal of Photogrammetry and Remote Sensing, 2018, 140: 20-32.
 
-[41] Ma X, Mao Z, Li X, et al. AMM-FuseNet: Attention-based multi-modal image fusion network for land cover mapping[J]. Remote Sensing, 2022, 14(18): 4458.
+[41] Marcos D, Volpi M, Kellenberger B, et al. Land cover mapping at very high resolution with rotation equivariant CNNs: Towards small yet accurate models[J]. ISPRS Journal of Photogrammetry and Remote Sensing, 2018, 145: 96-107.
 
-[42] Li X, Lei L, Sun Y, et al. Multimodal bilinear fusion network with second-order attention-based channel selection for land cover classification[J]. IEEE Journal of Selected Topics in Applied Earth Observations and Remote Sensing, 2020, 13: 1064-1077.
+[42] Li X, Zhang G, Cui H, et al. MCANet: A joint semantic segmentation framework of optical and SAR images for land use classification[J]. International Journal of Applied Earth Observation and Geoinformation, 2022, 106: 102638.
 
-[43] Li X, Zhang G, Cui H, et al. MCANet: A joint semantic segmentation framework of optical and SAR images for land use classification[J]. International Journal of Applied Earth Observation and Geoinformation, 2022, 106: 102638.
+[43] Feng J, Wang L, Yu H, et al. CMGFNet: A cross-modal gated fusion network for building extraction from very high-resolution remote sensing images and GIS data[J]. ISPRS Journal of Photogrammetry and Remote Sensing, 2022, 188: 61-76.
 
-[44] Feng J, Wang L, Yu H, et al. CMGFNet: A cross-modal gated fusion network for building extraction from very high-resolution remote sensing images and GIS data[J]. ISPRS Journal of Photogrammetry and Remote Sensing, 2022, 188: 61-76.
-
-[45] Zhang J, Liu H, Yang K, et al. CMX: Cross-modal fusion for RGB-X semantic segmentation with transformers[J]. IEEE Transactions on Intelligent Transportation Systems, 2023, 24(12): 14679-14694.
-
+[44] Zhang J, Liu H, Yang K, et al. CMX: Cross-modal fusion for RGB-X semantic segmentation with transformers[J]. IEEE Transactions on Intelligent Transportation Systems, 2023, 24(12): 14679-14694.
