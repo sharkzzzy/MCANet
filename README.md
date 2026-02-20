@@ -1,52 +1,12 @@
-## MCANet: A joint semantic segmentation framework of optical and SAR images for land use classification
-[Paper address](https://www.sciencedirect.com/science/article/pii/S0303243421003457)
-***
-I am not the author of the paper, and my code is a replication of the model based on the information provided in the paper. It is an unofficial implementation intended for learning and reference purposes. If you have any questions, feel free to contact me via email(1256154030@qq.com).
-***
-### [WHU-SAR-OPT DataSet](https://github.com/AmberHen/WHU-OPT-SAR-dataset)
-##### Make DataSet WHU-OPT-SAR 
-```Linux
-# Cut SAR Image into 256x256 patches
-python utils/crop_all_sar.py
-# Cut Optical Image into 256x256 patches
-python utils/crop_all_opt.py
-# Convert Label RGB to [0:7]
-python convert_label.py
-# Cut Optical Image into 256x256 patches
-python crop_all_lbl.py
-# Spilt data into train/validation/test set    6:2:2
-python spilt_data.py
-```
-######  Dataset Structure
-```
-dataset 
-|   |whu-opt-sar-dataset    Totals
-│   ├──   ├── train         17640
-│   ├──   │     ├── sar     
-│   ├──   │     │     ├── *.tif   
-│   ├──   │     ├── opt
-│   ├──   │     │     ├── *.tif   
-│   ├──   │     ├── lbl
-│   ├──   │     │     ├── *.tif 
-│   ├──   ├── val           5880
-│   ├──   │     ├── sar     
-│   ├──   │     │     ├── *.tif
-│   ├──   │     ├── opt
-│   ├──   │     │     ├── *.tif
-│   ├──   │     ├── lbl
-│   ├──   │     │     ├── *.tif
-│   ├──   ├── test           5880
-│   ├──   │     ├── sar
-│   ├──   │     │     ├── *.tif
-│   ├──   │     ├── opt
-│   ├──   │     │     ├── *.tif
-│   ├──   │     ├── lbl
-│   ├──   │     │     ├── *.tif
-```
+摘要： 遥感图像语义分割是遥感领域的核心技术之一，在城市规划、环境监测、灾害评估等领域具有重要的应用价值。随着遥感传感器分辨率的不断提高，高分辨率遥感图像中包含的地物类型日益多样、尺度差异显著、背景环境愈加复杂，对语义分割算法的特征提取能力和计算效率提出了更高的要求。近年来，状态空间模型（State Space Model, SSM）凭借其线性计算复杂度和全局建模能力，为遥感图像分割提供了新的技术路径。然而，现有基于SSM的分割方法仍然存在全局建模与局部细节增强相互耦合、注意力机制冗余堆叠导致计算开销增大等问题。同时，单一模态数据往往难以全面表征复杂地物的特征信息，光学图像与合成孔径雷达（SAR）图像在成像机理上的本质差异也给跨模态特征融合带来了显著挑战。
 
-##### Bash
-```Linux
-nohup python3 -u Train.py > train-MCANet.log 2>&1 &
-pyhton3 predict.py
-python3 test.py     # get OA on test dataset
-```
+为此，本文围绕遥感图像语义分割中的上述问题开展了以下研究：
+
+（1）针对现有基于SSM的分割方法中全局上下文建模与局部细节增强在单一路径中耦合处理、注意力机制冗余堆叠等问题，本文提出了基于双路径解耦的语义分割网络DP-UNet。该网络在解码器中设计了双路径解耦VSS模块（DVSS），采用"共享基座、分别增强"的策略：以二维选择性扫描模块（SS2D）作为共享基座生成基础特征，全局路径直接保留该基础特征以维持完整的上下文语义信息，局部路径则在此基础上通过高效通道注意力（ECA）进行通道重标定，并利用参数域可调卷积（PMC）在参数空间引入可学习的中心抑制先验以增强对边缘与纹理细节的感知能力，最终通过自适应路径融合门控（APFG）实现两条路径特征的自适应整合。在多尺度特征融合阶段，设计了轻量化多尺度空间核模块（MSK），在压缩通道空间内通过多尺度卷积提取空间模式并以纯空间注意力进行特征增强，有效避免了通道注意力在网络中的冗余施加。实验结果表明，DP-UNet在ISPRS Potsdam数据集上的平均交并比达到86.71%、总体精度达到91.57%，在ISPRS Vaihingen数据集上的平均交并比达到83.84%、总体精度达到91.43%，在LoveDA数据集上的平均交并比达到53.21%，模型参数量为11.30M，计算量为44.26G FLOPs，能够有效解决全局与局部特征耦合及注意力冗余问题，在分割精度与计算效率之间取得了良好的平衡。
+
+（2）针对单一模态遥感数据特征表征能力有限、光学图像与SAR图像模态差异显著导致特征融合不充分等问题，本文在DP-UNet的基础上提出了基于跨模态融合的多模态语义分割网络。该网络设计了双分支编码器分别提取光学图像和SAR图像的模态专属特征，并提出跨模态多尺度融合模块（CrossModalMSK），通过模态内多尺度空间特征提取捕获各模态不同尺度的空间信息，通过模态间交叉注意力机制建模两种模态特征之间的关联性并提取互补信息，实现不同模态、不同尺度特征的有效对齐与协同融合。解码器端复用DVSS模块对融合后的多模态特征进行渐进式上采样与精细化重建。实验结果表明，该网络在WHU-OPT-SAR数据集上的[占位：平均交并比达到XX%、总体精度达到XX%]，能够有效融合光学与SAR图像的互补信息，显著提升了复杂场景下的地物分割性能。
+
+关键词： 遥感图像语义分割；状态空间模型；双路径解耦；参数域可调卷积；多模态融合；跨模态注意力
+
+
+
